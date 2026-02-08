@@ -1,0 +1,32 @@
+<div class="max-w-sm mx-auto">
+  <h1 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Edit tag</h1>
+
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <%= form_with model: @tag, class: "space-y-4" do |f| %>
+      <% if @tag.errors.any? %>
+        <div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          <ul class="list-disc pl-4 space-y-0.5">
+            <% @tag.errors.full_messages.each do |msg| %>
+              <li><%= msg %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <div>
+        <%= f.label :name, class: "block text-sm font-medium text-gray-600 mb-1" %>
+        <%= f.text_field :name, class: "w-full rounded-lg border-gray-200 bg-gray-50 text-sm px-4 py-2.5 focus:ring-2 focus:ring-amber-400 focus:border-transparent" %>
+      </div>
+
+      <div>
+        <%= f.label :color, class: "block text-sm font-medium text-gray-600 mb-1" %>
+        <%= f.color_field :color, class: "w-16 h-10 rounded-lg border-gray-200 cursor-pointer" %>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <%= f.submit "Save", class: "px-5 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition cursor-pointer" %>
+        <%= link_to "Cancel", tags_path, class: "text-sm text-gray-500 hover:text-gray-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>

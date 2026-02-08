@@ -1,0 +1,65 @@
+<div class=\"max-w-4xl mx-auto\">
+  <h1 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-6">Admin dashboard</h1>
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-center">
+      <svg class="w-6 h-6 text-amber-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      <span class="block text-2xl font-bold text-gray-900"><%= @total_users %></span>
+      <span class="text-xs text-gray-400">Users</span>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-center">
+      <svg class="w-6 h-6 text-amber-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      <span class="block text-2xl font-bold text-gray-900"><%= @total_notes %></span>
+      <span class="text-xs text-gray-400">Notes</span>
+    </div>
+  </div>
+
+  <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Users</h2>
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50/80 text-left text-xs text-gray-400 uppercase tracking-wider">
+          <th class="px-4 py-3 font-medium">Name</th>
+          <th class="px-4 py-3 font-medium">Email</th>
+          <th class="px-4 py-3 font-medium">Role</th>
+          <th class="px-4 py-3 font-medium">Timeout</th>
+          <th class="px-4 py-3 font-medium">Notes</th>
+          <th class="px-4 py-3 font-medium"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        <% @users.each do |user| %>
+          <tr class="hover:bg-gray-50/50 transition">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold">
+                  <%= user.name&.first&.upcase || "?" %>
+                </div>
+                <span class="text-gray-900 font-medium"><%= user.name %></span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-gray-500"><%= user.email %></td>
+            <td class="px-4 py-3">
+              <%= form_with url: admin_update_user_path(user), method: :patch, class: "inline" do |f| %>
+                <%= f.select :role, User.roles.keys, { selected: user.role }, onchange: "this.form.requestSubmit()", class: "text-xs border-gray-200 bg-gray-50 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-amber-400" %>
+              <% end %>
+            </td>
+            <td class="px-4 py-3">
+              <%= form_with url: admin_update_user_path(user), method: :patch, class: "inline" do |f| %>
+                <%= f.number_field :session_timeout, value: user.session_timeout, min: 300, step: 300, class: "text-xs border-gray-200 bg-gray-50 rounded-lg py-1.5 px-2 w-20 focus:ring-2 focus:ring-amber-400", onchange: "this.form.requestSubmit()" %>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 text-gray-400"><%= user.notes.count %></td>
+            <td class="px-4 py-3">
+              <% unless user == current_user %>
+                <%= button_to admin_destroy_user_path(user), method: :delete, class: "p-1.5 rounded-full hover:bg-red-50 transition", data: { turbo_confirm: "Delete this user and all their notes?" } do %>
+                  <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <% end %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

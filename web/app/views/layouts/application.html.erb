@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Notes" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Notes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="bg-white min-h-screen">
+    <% if logged_in? %>
+      <%# ── Top bar ── %>
+      <header class="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
+        <div class="flex items-center h-16 px-4 lg:px-6">
+          <%# Logo & hamburger area %>
+          <div class="flex items-center w-60 flex-shrink-0">
+            <button type="button" onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar').classList.toggle('translate-x-0');"
+                    class="p-2 rounded-full hover:bg-gray-100 transition mr-2 lg:hidden">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <%= link_to root_path, class: "flex items-center space-x-2 group" do %>
+              <svg class="w-8 h-8 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/></svg>
+              <span class="text-xl text-gray-700 tracking-tight hidden sm:inline">Notes</span>
+            <% end %>
+          </div>
+
+          <%# Search bar ── centered, Google Keep style %>
+          <div class="flex-1 max-w-2xl mx-auto">
+            <%= form_with url: search_notes_path, method: :get, data: { turbo_frame: "_top" } do |f| %>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <%= f.search_field :q, value: params[:q], placeholder: "Search", class: "w-full pl-10 pr-4 py-2.5 bg-gray-100 hover:bg-gray-200 focus:bg-white border-0 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:shadow-md transition placeholder-gray-500" %>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Right side: user menu %>
+          <div class="flex items-center space-x-2 ml-4">
+            <% if current_user.admin? %>
+              <%= link_to admin_dashboard_path, class: "p-2 rounded-full hover:bg-gray-100 transition", title: "Admin" do %>
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              <% end %>
+            <% end %>
+            <div class="relative" data-controller="dropdown">
+              <button type="button" data-action="click->dropdown#toggle" class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm font-medium hover:bg-amber-600 transition" title="<%= current_user.name %>">
+                <%= current_user.name[0].upcase %>
+              </button>
+              <div data-dropdown-target="menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                <div class="px-4 py-2 border-b border-gray-100">
+                  <p class="text-sm font-medium text-gray-900 truncate"><%= current_user.name %></p>
+                  <p class="text-xs text-gray-500 truncate"><%= current_user.email %></p>
+                </div>
+                <%= link_to "Change password", edit_password_path, class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
+                <%= link_to "API docs", api_docs_path, class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
+                <%= button_to "Sign out", logout_path, method: :delete, class: "w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <%# ── Sidebar ── %>
+      <aside id="sidebar" class="fixed top-16 left-0 w-60 h-[calc(100vh-4rem)] bg-white z-40 transition-transform duration-200 -translate-x-full lg:translate-x-0 overflow-y-auto border-r border-gray-100">
+        <nav class="py-3 px-2">
+          <%= link_to notes_path, class: "flex items-center px-6 py-2.5 rounded-r-full text-sm transition #{(current_page?(notes_path) && !params[:filter]) ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700 hover:bg-gray-100'}" do %>
+            <svg class="w-5 h-5 mr-4 #{(current_page?(notes_path) && !params[:filter]) ? 'text-amber-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Notes
+          <% end %>
+
+          <%= link_to notes_path(filter: "pinned"), class: "flex items-center px-6 py-2.5 rounded-r-full text-sm transition #{params[:filter] == 'pinned' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700 hover:bg-gray-100'}" do %>
+            <svg class="w-5 h-5 mr-4 #{params[:filter] == 'pinned' ? 'text-amber-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            Pinned
+          <% end %>
+
+          <div class="border-t border-gray-100 my-2"></div>
+
+          <%= link_to tags_path, class: "flex items-center px-6 py-2.5 rounded-r-full text-sm transition #{current_page?(tags_path) ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700 hover:bg-gray-100'}" do %>
+            <svg class="w-5 h-5 mr-4 #{current_page?(tags_path) ? 'text-amber-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+            Tags
+          <% end %>
+
+          <%= link_to notes_path(filter: "archived"), class: "flex items-center px-6 py-2.5 rounded-r-full text-sm transition #{params[:filter] == 'archived' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700 hover:bg-gray-100'}" do %>
+            <svg class="w-5 h-5 mr-4 #{params[:filter] == 'archived' ? 'text-amber-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            Archive
+          <% end %>
+
+          <%= link_to notes_path(filter: "trash"), class: "flex items-center px-6 py-2.5 rounded-r-full text-sm transition #{params[:filter] == 'trash' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-gray-700 hover:bg-gray-100'}" do %>
+            <svg class="w-5 h-5 mr-4 #{params[:filter] == 'trash' ? 'text-amber-600' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            Trash
+          <% end %>
+        </nav>
+      </aside>
+
+      <%# ── Main content ── %>
+      <main class="pt-20 lg:pl-60 min-h-screen">
+        <div class="max-w-6xl mx-auto px-6 py-4">
+          <% if flash[:notice] %>
+            <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center">
+              <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <%= flash[:notice] %>
+            </div>
+          <% end %>
+          <% if flash[:alert] %>
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center">
+              <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <%= flash[:alert] %>
+            </div>
+          <% end %>
+          <%= yield %>
+        </div>
+      </main>
+    <% else %>
+      <%= yield %>
+    <% end %>
+  </body>
+</html>

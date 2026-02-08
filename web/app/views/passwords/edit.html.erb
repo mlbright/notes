@@ -1,0 +1,33 @@
+<div class="max-w-sm mx-auto">
+  <h1 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Change password</h1>
+
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <%= form_with url: password_path, method: :patch, class: "space-y-4" do |f| %>
+      <% if current_user.password_digest.present? %>
+        <div>
+          <%= f.label :current_password, "Current password", class: "block text-sm font-medium text-gray-600 mb-1" %>
+          <%= f.password_field :current_password, required: true,
+              class: "w-full rounded-lg border-gray-200 bg-gray-50 text-sm px-4 py-2.5 focus:ring-2 focus:ring-amber-400 focus:border-transparent" %>
+        </div>
+      <% end %>
+
+      <div>
+        <%= f.label :password, "New password", class: "block text-sm font-medium text-gray-600 mb-1" %>
+        <%= f.password_field :password, required: true,
+            class: "w-full rounded-lg border-gray-200 bg-gray-50 text-sm px-4 py-2.5 focus:ring-2 focus:ring-amber-400 focus:border-transparent",
+            placeholder: "Minimum 4 characters" %>
+      </div>
+
+      <div>
+        <%= f.label :password_confirmation, "Confirm password", class: "block text-sm font-medium text-gray-600 mb-1" %>
+        <%= f.password_field :password_confirmation, required: true,
+            class: "w-full rounded-lg border-gray-200 bg-gray-50 text-sm px-4 py-2.5 focus:ring-2 focus:ring-amber-400 focus:border-transparent" %>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <%= f.submit "Update password", class: "px-5 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition cursor-pointer shadow-sm" %>
+        <%= link_to "Cancel", notes_path, class: "text-sm text-gray-500 hover:text-gray-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>

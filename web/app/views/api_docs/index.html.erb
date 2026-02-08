@@ -1,0 +1,235 @@
+<div class="max-w-4xl mx-auto">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">API Documentation</h1>
+    <p class="text-sm text-gray-500 mt-1">RESTful JSON API &mdash; version 1</p>
+  </div>
+
+  <%# Authentication %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f511;</span>
+      Authentication
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden shadow-sm">
+      <div class="p-5">
+        <p class="text-sm text-gray-600 mb-3">All API requests require a Bearer token in the <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">Authorization</code> header.</p>
+        <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700 mb-4">Authorization: Bearer &lt;your-token&gt;</div>
+        <h3 class="text-sm font-semibold text-gray-800 mb-2">Obtain a token</h3>
+        <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700 space-y-1">
+          <p><span class="text-green-600 font-semibold">POST</span> /api/v1/auth/token</p>
+          <p class="text-gray-500"># With password:</p>
+          <p>{ "email": "you@example.com", "password": "your-password" }</p>
+          <p class="text-gray-500 mt-1"># With OAuth UID:</p>
+          <p>{ "email": "you@example.com", "uid": "your-oauth-uid" }</p>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">Returns <code class="bg-gray-100 px-1 py-0.5 rounded">{ "token": "...", "expires_at": "..." }</code>. Tokens expire after 30 days.</p>
+      </div>
+      <div class="p-5">
+        <h3 class="text-sm font-semibold text-gray-800 mb-2">Refresh a token</h3>
+        <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700">
+          <span class="text-green-600 font-semibold">POST</span> /api/v1/auth/refresh
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Send your current token in the Authorization header. Returns a new token.</p>
+      </div>
+    </div>
+  </section>
+
+  <%# Notes %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f4dd;</span>
+      Notes
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden shadow-sm">
+      <% [
+        ["GET",    "/api/v1/notes",                  "List notes",       "Supports ?tag=, ?pinned=, ?archived=, ?sort=, ?page=, ?limit= query params"],
+        ["POST",   "/api/v1/notes",                  "Create a note",    'Body: { "note": { "title": "...", "body": "..." } }'],
+        ["GET",    "/api/v1/notes/:id",               "Get a note",       nil],
+        ["PATCH",  "/api/v1/notes/:id",               "Update a note",    'Body: { "note": { "title": "...", "body": "..." } }'],
+        ["DELETE", "/api/v1/notes/:id",               "Delete / trash a note", nil],
+        ["PATCH",  "/api/v1/notes/:id/restore",       "Restore from trash", nil],
+        ["PATCH",  "/api/v1/notes/:id/archive",       "Archive a note",   nil],
+        ["PATCH",  "/api/v1/notes/:id/unarchive",     "Unarchive",        nil],
+        ["PATCH",  "/api/v1/notes/:id/toggle_pin",    "Toggle pin",       nil],
+        ["POST",   "/api/v1/notes/:id/duplicate",     "Duplicate a note", nil],
+        ["POST",   "/api/v1/notes/:id/merge",         "Merge notes",      'Body: { "source_id": 123 }'],
+        ["GET",    "/api/v1/notes/:id/export",        "Export as markdown", nil],
+        ["GET",    "/api/v1/notes/search",            "Full-text search",  "?q=query"],
+        ["GET",    "/api/v1/notes/trash",             "List trashed notes", nil],
+        ["POST",   "/api/v1/notes/bulk_export",       "Export all as zip", nil],
+      ].each do |method, path, desc, detail| %>
+        <div class="p-4 flex items-start gap-4">
+          <span class="inline-block w-16 text-center text-xs font-bold rounded-md py-1
+            <%= case method
+                when 'GET'    then 'bg-blue-50 text-blue-600'
+                when 'POST'   then 'bg-green-50 text-green-600'
+                when 'PATCH'  then 'bg-yellow-50 text-yellow-700'
+                when 'DELETE' then 'bg-red-50 text-red-600'
+                end %>
+          "><%= method %></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900"><%= desc %></p>
+            <p class="font-mono text-xs text-gray-500 truncate"><%= path %></p>
+            <% if detail %>
+              <p class="text-xs text-gray-400 mt-1"><%= detail %></p>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# Tags %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f3f7;</span>
+      Tags
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden shadow-sm">
+      <% [
+        ["GET",    "/api/v1/tags",     "List tags",    nil],
+        ["POST",   "/api/v1/tags",     "Create a tag", 'Body: { "tag": { "name": "...", "color": "#hex" } }'],
+        ["PATCH",  "/api/v1/tags/:id", "Update a tag", nil],
+        ["DELETE", "/api/v1/tags/:id", "Delete a tag", nil],
+      ].each do |method, path, desc, detail| %>
+        <div class="p-4 flex items-start gap-4">
+          <span class="inline-block w-16 text-center text-xs font-bold rounded-md py-1
+            <%= case method
+                when 'GET'    then 'bg-blue-50 text-blue-600'
+                when 'POST'   then 'bg-green-50 text-green-600'
+                when 'PATCH'  then 'bg-yellow-50 text-yellow-700'
+                when 'DELETE' then 'bg-red-50 text-red-600'
+                end %>
+          "><%= method %></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900"><%= desc %></p>
+            <p class="font-mono text-xs text-gray-500"><%= path %></p>
+            <% if detail %>
+              <p class="text-xs text-gray-400 mt-1"><%= detail %></p>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# Shares %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f91d;</span>
+      Shares
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden shadow-sm">
+      <% [
+        ["GET",    "/api/v1/notes/:note_id/shares",     "List shares",    nil],
+        ["POST",   "/api/v1/notes/:note_id/shares",     "Share a note",   'Body: { "email": "user@example.com" }'],
+        ["DELETE", "/api/v1/notes/:note_id/shares/:id",  "Revoke share",   nil],
+      ].each do |method, path, desc, detail| %>
+        <div class="p-4 flex items-start gap-4">
+          <span class="inline-block w-16 text-center text-xs font-bold rounded-md py-1
+            <%= case method
+                when 'GET'    then 'bg-blue-50 text-blue-600'
+                when 'POST'   then 'bg-green-50 text-green-600'
+                when 'DELETE' then 'bg-red-50 text-red-600'
+                end %>
+          "><%= method %></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900"><%= desc %></p>
+            <p class="font-mono text-xs text-gray-500"><%= path %></p>
+            <% if detail %>
+              <p class="text-xs text-gray-400 mt-1"><%= detail %></p>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# Versions %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f4c3;</span>
+      Versions
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden shadow-sm">
+      <% [
+        ["GET",  "/api/v1/notes/:note_id/versions",             "List versions",     nil],
+        ["GET",  "/api/v1/notes/:note_id/versions/:id",          "Get a version",     nil],
+        ["POST", "/api/v1/notes/:note_id/versions/:id/restore",  "Restore a version", nil],
+      ].each do |method, path, desc, detail| %>
+        <div class="p-4 flex items-start gap-4">
+          <span class="inline-block w-16 text-center text-xs font-bold rounded-md py-1
+            <%= case method
+                when 'GET'  then 'bg-blue-50 text-blue-600'
+                when 'POST' then 'bg-green-50 text-green-600'
+                end %>
+          "><%= method %></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900"><%= desc %></p>
+            <p class="font-mono text-xs text-gray-500"><%= path %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# Attachments %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f4ce;</span>
+      Attachments
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden shadow-sm">
+      <% [
+        ["GET",    "/api/v1/notes/:note_id/attachments",     "List attachments", nil],
+        ["POST",   "/api/v1/notes/:note_id/attachments",     "Upload files",     "Multipart form: files[] (max 25 MB each)"],
+        ["DELETE", "/api/v1/notes/:note_id/attachments/:id",  "Remove attachment", nil],
+      ].each do |method, path, desc, detail| %>
+        <div class="p-4 flex items-start gap-4">
+          <span class="inline-block w-16 text-center text-xs font-bold rounded-md py-1
+            <%= case method
+                when 'GET'    then 'bg-blue-50 text-blue-600'
+                when 'POST'   then 'bg-green-50 text-green-600'
+                when 'DELETE' then 'bg-red-50 text-red-600'
+                end %>
+          "><%= method %></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900"><%= desc %></p>
+            <p class="font-mono text-xs text-gray-500"><%= path %></p>
+            <% if detail %>
+              <p class="text-xs text-gray-400 mt-1"><%= detail %></p>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# Rate limits %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x26a0;</span>
+      Rate Limiting
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+      <p class="text-sm text-gray-600">API requests are rate-limited to <strong>300 requests per 5 minutes</strong> per IP address and per API token.</p>
+      <p class="text-sm text-gray-600 mt-2">Exceeding the limit returns <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">429 Too Many Requests</code>.</p>
+    </div>
+  </section>
+
+  <%# Error format %>
+  <section>
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x274c;</span>
+      Error Responses
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+      <p class="text-sm text-gray-600 mb-3">All errors return a JSON body with an <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">error</code> or <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">errors</code> key.</p>
+      <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700 space-y-1">
+        <p>{ "error": "Not found" }&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-gray-400"># 404</span></p>
+        <p>{ "error": "Unauthorized" }&nbsp;&nbsp;<span class="text-gray-400"># 401</span></p>
+        <p>{ "errors": ["Title..."] }&nbsp;&nbsp;<span class="text-gray-400"># 422</span></p>
+      </div>
+    </div>
+  </section>
+</div>
