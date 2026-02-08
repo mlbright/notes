@@ -9,7 +9,7 @@
 
   <% if @tags.empty? %>
     <div class="text-center py-16">
-      <svg class="mx-auto w-20 h-20 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+      <svg class="mx-auto w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
       <p class="text-gray-400">No tags yet</p>
     </div>
   <% else %>
@@ -22,10 +22,10 @@
             <span class="text-xs text-gray-400"><%= tag.notes.count %> notes</span>
           </div>
           <div class="flex items-center gap-1">
-            <%= link_to edit_tag_path(tag), class: "p-1.5 rounded-full hover:bg-gray-100 transition", title: "Edit" do %>
+            <%= link_to edit_tag_path(tag), class: "p-2 rounded-full hover:bg-gray-100 transition", title: "Edit" do %>
               <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             <% end %>
-            <%= button_to tag_path(tag), method: :delete, class: "p-1.5 rounded-full hover:bg-red-50 transition", title: "Delete", data: { turbo_confirm: "Delete this tag?" } do %>
+            <%= button_to tag_path(tag), method: :delete, class: "p-2 rounded-full hover:bg-red-50 transition", title: "Delete", data: { turbo_confirm: "Delete this tag?" } do %>
               <svg class="w-4 h-4 text-gray-400 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             <% end %>
           </div>
