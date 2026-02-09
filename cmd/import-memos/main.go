@@ -10,9 +10,6 @@
 //	  [--dry-run]
 //
 // Limitations:
-//   - created_at / updated_at timestamps are NOT preserved — the Notes API does
-//     not accept them. Notes will have the import timestamp. Original timestamps
-//     are logged for reference.
 //   - Memo relations, reactions, and comments are not migrated.
 //   - Memos visibility (PRIVATE/PROTECTED/PUBLIC) has no equivalent — all
 //     imported notes are private to the mapped Notes user.
@@ -219,7 +216,7 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 		maxSize = len(body) + 1024 // some headroom
 	}
 
-	note, err := notesClient.CreateNote(title, body, memo.Pinned, tagIDs, maxSize)
+	note, err := notesClient.CreateNote(title, body, memo.Pinned, tagIDs, maxSize, memo.CreateTime, memo.UpdateTime)
 	if err != nil {
 		msg := fmt.Sprintf("creating note from memo %s: %v", memo.Name, err)
 		fmt.Printf("  %s Error: %s\n", progress, msg)
@@ -271,7 +268,7 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 
 	fmt.Printf("  %s Created note #%d %q (%d tags, %d attachments)\n",
 		progress, note.ID, desc, len(tagIDs), nAttachments)
-	fmt.Printf("           Original: created %s, updated %s\n",
+	fmt.Printf("           Timestamps preserved: created %s, updated %s\n",
 		memo.CreateTime.Format("2006-01-02 15:04"), memo.UpdateTime.Format("2006-01-02 15:04"))
 }
 

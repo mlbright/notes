@@ -85,6 +85,35 @@ func (c *NotesClient) doJSON(method, path string, payload any) ([]byte, error) {
 	return respBody, nil
 }
 
+// Authenticate obtains an API token by email and password, storing it on the
+// client for subsequent requests. Returns the token string.
+func (c *NotesClient) Authenticate(email, password string) (string, error) {
+	payload := map[string]string{
+		"email":    email,
+		"password": password,
+	}
+
+	// This endpoint doesn't require auth, but doJSON sends the header harmlessly.
+	body, err := c.doJSON("POST", "/api/v1/auth/token", payload)
+	if err != nil {
+		return "", fmt.Errorf("authenticating with Notes: %w", err)
+	}
+
+	var resp struct {
+		Token     string `json:"token"`
+		ExpiresAt string `json:"expires_at"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("parsing auth response: %w", err)
+	}
+	if resp.Token == "" {
+		return "", fmt.Errorf("no token returned from Notes auth endpoint")
+	}
+
+	c.token = resp.Token
+	return resp.Token, nil
+}
+
 // Ping checks connectivity by listing tags (a lightweight authenticated endpoint).
 func (c *NotesClient) Ping() error {
 	_, err := c.doJSON("GET", "/api/v1/tags", nil)
@@ -132,8 +161,9 @@ func (c *NotesClient) CreateTag(name, color string) (*NotesTag, error) {
 	return &tag, nil
 }
 
-// CreateNote creates a new note and returns it.
-func (c *NotesClient) CreateNote(title, noteBody string, pinned bool, tagIDs []int, maxSize int) (*NotesNote, error) {
+// CreateNote creates a new note and returns it. If createdAt or updatedAt are
+// non-zero, they are sent so the Notes API preserves the original timestamps.
+func (c *NotesClient) CreateNote(title, noteBody string, pinned bool, tagIDs []int, maxSize int, createdAt, updatedAt time.Time) (*NotesNote, error) {
 	payload := map[string]any{
 		"title":  title,
 		"body":   noteBody,
@@ -144,6 +174,12 @@ func (c *NotesClient) CreateNote(title, noteBody string, pinned bool, tagIDs []i
 	}
 	if maxSize > 32768 {
 		payload["max_size"] = maxSize
+	}
+	if !createdAt.IsZero() {
+		payload["created_at"] = createdAt.Format(time.RFC3339)
+	}
+	if !updatedAt.IsZero() {
+		payload["updated_at"] = updatedAt.Format(time.RFC3339)
 	}
 
 	body, err := c.doJSON("POST", "/api/v1/notes", payload)

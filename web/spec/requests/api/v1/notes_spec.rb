@@ -38,6 +38,20 @@ RSpec.describe "Api::V1::Notes", type: :request do
       post "/api/v1/notes", params: { body: "x" * 40_000 }.to_json, headers: headers
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    it "preserves provided created_at and updated_at timestamps" do
+      created = "2024-06-15T10:30:00Z"
+      updated = "2024-12-01T14:00:00Z"
+
+      post "/api/v1/notes",
+        params: { title: "Imported", body: "From memos", created_at: created, updated_at: updated }.to_json,
+        headers: headers
+      expect(response).to have_http_status(:created)
+
+      json = JSON.parse(response.body)
+      expect(Time.parse(json["created_at"])).to be_within(1.second).of(Time.parse(created))
+      expect(Time.parse(json["updated_at"])).to be_within(1.second).of(Time.parse(updated))
+    end
   end
 
   describe "GET /api/v1/notes/:id" do

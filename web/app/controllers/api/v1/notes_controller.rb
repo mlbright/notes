@@ -123,7 +123,7 @@ module Api
       private
 
       def note_params
-        params.permit(:title, :body, :pinned, :max_size)
+        params.permit(:title, :body, :pinned, :max_size, :created_at, :updated_at)
       end
 
       def apply_filters(notes)
