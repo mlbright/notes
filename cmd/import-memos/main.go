@@ -52,11 +52,13 @@ func main() {
 	fmt.Println("OK")
 
 	// Fetch Memos users.
+	fmt.Println("Fetching Memos users...")
 	memosUsers, err := memosClient.ListUsers()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error listing Memos users: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("Found %d user(s) in Memos\n", len(memosUsers))
 
 	// Interactive user mapping.
 	mappings, err := promptUserMappings(memosUsers, *notesURL)
@@ -84,7 +86,8 @@ func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping,
 
 	notesClient := NewNotesClient(notesURL, mapping.NotesToken)
 
-	fmt.Printf("\n%s Syncing tags...\n", label)
+	fmt.Printf("\n%s Step 1/3: Syncing tags...\n", label)
+	fmt.Printf("%s   Fetching tag stats from Memos...\n", label)
 	tagMap, err := syncTags(memosClient, notesClient, mapping.MemosUserName, dryRun, stats)
 	if err != nil {
 		msg := fmt.Sprintf("tag sync failed: %v", err)
@@ -92,9 +95,9 @@ func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping,
 		stats.Errors = append(stats.Errors, msg)
 		return stats
 	}
-	fmt.Printf("%s Tags ready (%d new)\n", label, stats.TagsCreated)
+	fmt.Printf("%s   Tags ready: %d existing, %d newly created\n", label, len(tagMap)-stats.TagsCreated, stats.TagsCreated)
 
-	fmt.Printf("%s Fetching memos...\n", label)
+	fmt.Printf("\n%s Step 2/3: Fetching all memos...\n", label)
 	memos, err := memosClient.ListAllMemos(mapping.MemosUserName)
 	if err != nil {
 		msg := fmt.Sprintf("fetching memos failed: %v", err)
@@ -102,7 +105,8 @@ func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping,
 		stats.Errors = append(stats.Errors, msg)
 		return stats
 	}
-	fmt.Printf("%s Found %d memo(s)\n", label, len(memos))
+
+	fmt.Printf("\n%s Step 3/3: Importing %d memo(s) into Notes...\n", label, len(memos))
 
 	for i, memo := range memos {
 		progress := fmt.Sprintf("%s [%d/%d]", label, i+1, len(memos))
@@ -210,6 +214,8 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 		return
 	}
 
+	fmt.Printf("  %s Creating note %q...", progress, desc)
+
 	// Determine max_size: if body is longer than 32K, raise the limit.
 	maxSize := 0
 	if len(body) > 32768 {
@@ -227,6 +233,7 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 
 	// Archive if the memo was archived.
 	if memo.State == "ARCHIVED" {
+		fmt.Printf(" archiving...")
 		if err := notesClient.ArchiveNote(note.ID); err != nil {
 			msg := fmt.Sprintf("archiving note %d: %v", note.ID, err)
 			fmt.Printf("  %s Warning: %s\n", progress, msg)
@@ -236,6 +243,7 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 
 	// Download and upload attachments.
 	if nAttachments > 0 {
+		fmt.Printf(" downloading %d attachment(s)...", nAttachments)
 		var files []FileData
 		for _, att := range memo.Attachments {
 			if att.Size > maxAttachmentBytes {
@@ -256,6 +264,7 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 		}
 
 		if len(files) > 0 {
+			fmt.Printf(" uploading %d file(s)...", len(files))
 			if err := notesClient.UploadAttachments(note.ID, files); err != nil {
 				msg := fmt.Sprintf("uploading attachments to note %d: %v", note.ID, err)
 				fmt.Printf("  %s Warning: %s\n", progress, msg)
@@ -266,9 +275,9 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 		}
 	}
 
-	fmt.Printf("  %s Created note #%d %q (%d tags, %d attachments)\n",
-		progress, note.ID, desc, len(tagIDs), nAttachments)
-	fmt.Printf("           Timestamps preserved: created %s, updated %s\n",
+	fmt.Printf(" done\n")
+	fmt.Printf("           -> note #%d | %d tags, %d attachments | created %s, updated %s\n",
+		note.ID, len(tagIDs), nAttachments,
 		memo.CreateTime.Format("2006-01-02 15:04"), memo.UpdateTime.Format("2006-01-02 15:04"))
 }
 

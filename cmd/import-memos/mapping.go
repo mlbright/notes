@@ -64,8 +64,11 @@ func promptUserMappings(memosUsers []MemosUser, notesURL string) ([]UserMapping,
 	var mappings []UserMapping
 	for _, mu := range selectedUsers {
 		fmt.Printf("\nMapping Memos user: %s (%s)\n", mu.DisplayName, mu.Username)
-		fmt.Println("  Authenticate to the Notes account for this user:")
-		fmt.Println("    1. Enter an existing API token")
+		fmt.Println("  Authenticate to the Notes account for this user.")
+		fmt.Println("  To generate a Notes API token, run on the Notes server:")
+		fmt.Println("    bin/rails 'api:generate_token[user@example.com]'")
+		fmt.Println("")
+		fmt.Println("    1. Enter an API token")
 		fmt.Println("    2. Log in with email and password")
 		fmt.Print("  Choice [1/2]: ")
 		if !scanner.Scan() {

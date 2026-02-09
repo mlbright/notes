@@ -70,8 +70,11 @@ func (c *MemosClient) Ping() error {
 func (c *MemosClient) ListUsers() ([]MemosUser, error) {
 	var allUsers []MemosUser
 	pageToken := ""
+	page := 0
 
+	fmt.Print("  Fetching users from Memos...")
 	for {
+		page++
 		path := "/api/v1/users?pageSize=200"
 		if pageToken != "" {
 			path += "&pageToken=" + url.QueryEscape(pageToken)
@@ -79,15 +82,18 @@ func (c *MemosClient) ListUsers() ([]MemosUser, error) {
 
 		body, err := c.doRequest("GET", path)
 		if err != nil {
+			fmt.Println()
 			return nil, fmt.Errorf("listing users: %w", err)
 		}
 
 		var resp MemosListUsersResponse
 		if err := json.Unmarshal(body, &resp); err != nil {
+			fmt.Println()
 			return nil, fmt.Errorf("parsing users response: %w", err)
 		}
 
 		allUsers = append(allUsers, resp.Users...)
+		fmt.Printf(" %d users so far (page %d)...", len(allUsers), page)
 
 		if resp.NextPageToken == "" {
 			break
@@ -95,6 +101,7 @@ func (c *MemosClient) ListUsers() ([]MemosUser, error) {
 		pageToken = resp.NextPageToken
 	}
 
+	fmt.Printf(" done (%d total)\n", len(allUsers))
 	return allUsers, nil
 }
 
@@ -121,13 +128,15 @@ func (c *MemosClient) GetUserStats(userName string) (*MemosUserStats, error) {
 func (c *MemosClient) ListMemos(creatorName, state string) ([]MemosMemo, error) {
 	var allMemos []MemosMemo
 	pageToken := ""
+	page := 0
 
+	fmt.Printf("    Fetching %s memos for %s...", state, creatorName)
 	for {
+		page++
 		params := url.Values{}
 		params.Set("pageSize", "200")
 		params.Set("state", state)
 		// Filter by creator using CEL filter expression.
-		// Extract the user ID number from "users/1".
 		parts := strings.Split(creatorName, "/")
 		if len(parts) == 2 {
 			params.Set("filter", fmt.Sprintf("creator == \"%s\"", creatorName))
@@ -139,15 +148,18 @@ func (c *MemosClient) ListMemos(creatorName, state string) ([]MemosMemo, error) 
 		path := "/api/v1/memos?" + params.Encode()
 		body, err := c.doRequest("GET", path)
 		if err != nil {
+			fmt.Println()
 			return nil, fmt.Errorf("listing memos (state=%s): %w", state, err)
 		}
 
 		var resp MemosListMemosResponse
 		if err := json.Unmarshal(body, &resp); err != nil {
+			fmt.Println()
 			return nil, fmt.Errorf("parsing memos response: %w", err)
 		}
 
 		allMemos = append(allMemos, resp.Memos...)
+		fmt.Printf(" %d", len(allMemos))
 
 		if resp.NextPageToken == "" {
 			break
@@ -155,6 +167,7 @@ func (c *MemosClient) ListMemos(creatorName, state string) ([]MemosMemo, error) 
 		pageToken = resp.NextPageToken
 	}
 
+	fmt.Printf(" done (%d %s memos)\n", len(allMemos), state)
 	return allMemos, nil
 }
 
@@ -171,6 +184,7 @@ func (c *MemosClient) ListAllMemos(creatorName string) ([]MemosMemo, error) {
 	}
 
 	all := append(normal, archived...)
+	fmt.Printf("    Total: %d memos (%d normal, %d archived). Sorting by date...\n", len(all), len(normal), len(archived))
 
 	// Sort by CreateTime ascending.
 	for i := 0; i < len(all); i++ {
