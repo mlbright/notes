@@ -23,7 +23,7 @@ func NewMemosClient(baseURL, token string) *MemosClient {
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   token,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 10 * time.Second,
 		},
 	}
 }
@@ -136,10 +136,11 @@ func (c *MemosClient) ListMemos(creatorName, state string) ([]MemosMemo, error) 
 		params := url.Values{}
 		params.Set("pageSize", "200")
 		params.Set("state", state)
-		// Filter by creator using CEL filter expression.
+		// Filter by creator using CEL expression with creator_id (integer).
+		// Extract the numeric ID from "users/1".
 		parts := strings.Split(creatorName, "/")
 		if len(parts) == 2 {
-			params.Set("filter", fmt.Sprintf("creator == \"%s\"", creatorName))
+			params.Set("filter", fmt.Sprintf("creator_id == %s", parts[1]))
 		}
 		if pageToken != "" {
 			params.Set("pageToken", pageToken)

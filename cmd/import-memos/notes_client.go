@@ -24,7 +24,7 @@ func NewNotesClient(baseURL, token string) *NotesClient {
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   token,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 10 * time.Second,
 		},
 	}
 }
@@ -57,32 +57,56 @@ func (c *NotesClient) doRequest(method, path string, body io.Reader, contentType
 }
 
 // doJSON performs an authenticated JSON request and checks the status code.
+// It automatically retries on HTTP 429 (rate limited) with exponential backoff.
 func (c *NotesClient) doJSON(method, path string, payload any) ([]byte, error) {
-	var body io.Reader
+	var jsonData []byte
 	ct := "application/json"
 
 	if payload != nil {
-		data, err := json.Marshal(payload)
+		var err error
+		jsonData, err = json.Marshal(payload)
 		if err != nil {
 			return nil, fmt.Errorf("marshaling JSON for %s: %w", path, err)
 		}
-		body = bytes.NewReader(data)
 	}
 
-	respBody, status, err := c.doRequest(method, path, body, ct)
-	if err != nil {
-		return nil, err
-	}
+	const maxRetries = 5
+	backoff := 2 * time.Second
 
-	if status < 200 || status >= 300 {
-		snippet := string(respBody)
-		if len(snippet) > 200 {
-			snippet = snippet[:200] + "..."
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		var body io.Reader
+		if jsonData != nil {
+			body = bytes.NewReader(jsonData)
 		}
-		return nil, fmt.Errorf("HTTP %d from %s %s: %s", status, method, path, snippet)
+
+		respBody, status, err := c.doRequest(method, path, body, ct)
+		if err != nil {
+			return nil, err
+		}
+
+		if status == 429 {
+			if attempt == maxRetries {
+				return nil, fmt.Errorf("HTTP 429 from %s %s after %d retries: rate limit exceeded", method, path, maxRetries)
+			}
+			fmt.Printf("\n    Rate limited on %s %s — waiting %v before retry %d/%d...", method, path, backoff, attempt+1, maxRetries)
+			time.Sleep(backoff)
+			backoff *= 2 // exponential backoff
+			continue
+		}
+
+		if status < 200 || status >= 300 {
+			snippet := string(respBody)
+			if len(snippet) > 200 {
+				snippet = snippet[:200] + "..."
+			}
+			return nil, fmt.Errorf("HTTP %d from %s %s: %s", status, method, path, snippet)
+		}
+
+		return respBody, nil
 	}
 
-	return respBody, nil
+	// unreachable, but just in case
+	return nil, fmt.Errorf("exhausted retries for %s %s", method, path)
 }
 
 // Authenticate obtains an API token by email and password, storing it on the
@@ -206,41 +230,59 @@ func (c *NotesClient) ArchiveNote(noteID int) error {
 }
 
 // UploadAttachments uploads one or more files to a note as multipart form data.
+// It retries on HTTP 429 with exponential backoff.
 func (c *NotesClient) UploadAttachments(noteID int, files []FileData) error {
 	if len(files) == 0 {
 		return nil
 	}
 
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	for _, f := range files {
-		part, err := writer.CreateFormFile("files[]", f.Filename)
-		if err != nil {
-			return fmt.Errorf("creating form file for %s: %w", f.Filename, err)
-		}
-		if _, err := part.Write(f.Data); err != nil {
-			return fmt.Errorf("writing file data for %s: %w", f.Filename, err)
-		}
-	}
-
-	if err := writer.Close(); err != nil {
-		return fmt.Errorf("closing multipart writer: %w", err)
-	}
-
 	path := fmt.Sprintf("/api/v1/notes/%d/attachments", noteID)
-	respBody, status, err := c.doRequest("POST", path, &buf, writer.FormDataContentType())
-	if err != nil {
-		return fmt.Errorf("uploading attachments to note %d: %w", noteID, err)
-	}
+	const maxRetries = 5
+	backoff := 2 * time.Second
 
-	if status < 200 || status >= 300 {
-		snippet := string(respBody)
-		if len(snippet) > 200 {
-			snippet = snippet[:200] + "..."
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		var buf bytes.Buffer
+		writer := multipart.NewWriter(&buf)
+
+		for _, f := range files {
+			part, err := writer.CreateFormFile("files[]", f.Filename)
+			if err != nil {
+				return fmt.Errorf("creating form file for %s: %w", f.Filename, err)
+			}
+			if _, err := part.Write(f.Data); err != nil {
+				return fmt.Errorf("writing file data for %s: %w", f.Filename, err)
+			}
 		}
-		return fmt.Errorf("HTTP %d uploading attachments to note %d: %s", status, noteID, snippet)
+
+		if err := writer.Close(); err != nil {
+			return fmt.Errorf("closing multipart writer: %w", err)
+		}
+
+		respBody, status, err := c.doRequest("POST", path, &buf, writer.FormDataContentType())
+		if err != nil {
+			return fmt.Errorf("uploading attachments to note %d: %w", noteID, err)
+		}
+
+		if status == 429 {
+			if attempt == maxRetries {
+				return fmt.Errorf("HTTP 429 uploading attachments to note %d after %d retries: rate limit exceeded", noteID, maxRetries)
+			}
+			fmt.Printf("\n    Rate limited on attachment upload — waiting %v before retry %d/%d...", backoff, attempt+1, maxRetries)
+			time.Sleep(backoff)
+			backoff *= 2
+			continue
+		}
+
+		if status < 200 || status >= 300 {
+			snippet := string(respBody)
+			if len(snippet) > 200 {
+				snippet = snippet[:200] + "..."
+			}
+			return fmt.Errorf("HTTP %d uploading attachments to note %d: %s", status, noteID, snippet)
+		}
+
+		return nil
 	}
 
-	return nil
+	return fmt.Errorf("exhausted retries uploading attachments to note %d", noteID)
 }

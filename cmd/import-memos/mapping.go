@@ -64,66 +64,35 @@ func promptUserMappings(memosUsers []MemosUser, notesURL string) ([]UserMapping,
 	var mappings []UserMapping
 	for _, mu := range selectedUsers {
 		fmt.Printf("\nMapping Memos user: %s (%s)\n", mu.DisplayName, mu.Username)
-		fmt.Println("  Authenticate to the Notes account for this user.")
-		fmt.Println("  To generate a Notes API token, run on the Notes server:")
-		fmt.Println("    bin/rails 'api:generate_token[user@example.com]'")
-		fmt.Println("")
-		fmt.Println("    1. Enter an API token")
-		fmt.Println("    2. Log in with email and password")
-		fmt.Print("  Choice [1/2]: ")
+		fmt.Println("  Enter Notes credentials for this user's account.")
+
+		fmt.Print("  Email: ")
 		if !scanner.Scan() {
 			return nil, fmt.Errorf("no input received")
 		}
-		choice := strings.TrimSpace(scanner.Text())
+		email := strings.TrimSpace(scanner.Text())
 
-		var token string
-		var client *NotesClient
+		fmt.Print("  Password: ")
+		if !scanner.Scan() {
+			return nil, fmt.Errorf("no input received")
+		}
+		password := strings.TrimSpace(scanner.Text())
 
-		switch choice {
-		case "2":
-			// Log in with email/password.
-			fmt.Print("  Email: ")
-			if !scanner.Scan() {
-				return nil, fmt.Errorf("no input received")
-			}
-			email := strings.TrimSpace(scanner.Text())
-
-			fmt.Print("  Password: ")
-			if !scanner.Scan() {
-				return nil, fmt.Errorf("no input received")
-			}
-			password := strings.TrimSpace(scanner.Text())
-
-			if email == "" || password == "" {
-				fmt.Println("  Skipping (empty credentials)")
-				continue
-			}
-
-			client = NewNotesClient(notesURL, "")
-			var err error
-			token, err = client.Authenticate(email, password)
-			if err != nil {
-				fmt.Printf("  Error: authentication failed: %v\n", err)
-				fmt.Println("  Skipping this user")
-				continue
-			}
-			fmt.Println("  ✓ Authenticated successfully")
-
-		default:
-			// Use an existing API token.
-			fmt.Print("  API token: ")
-			if !scanner.Scan() {
-				return nil, fmt.Errorf("no input received for token")
-			}
-			token = strings.TrimSpace(scanner.Text())
-			if token == "" {
-				fmt.Println("  Skipping (no token provided)")
-				continue
-			}
-			client = NewNotesClient(notesURL, token)
+		if email == "" || password == "" {
+			fmt.Println("  Skipping (empty credentials)")
+			continue
 		}
 
-		// Verify the token works.
+		client := NewNotesClient(notesURL, "")
+		token, err := client.Authenticate(email, password)
+		if err != nil {
+			fmt.Printf("  Error: authentication failed: %v\n", err)
+			fmt.Println("  Skipping this user")
+			continue
+		}
+		fmt.Println("  ✓ Authenticated successfully")
+
+		// Verify the token works with an authenticated endpoint.
 		if err := client.Ping(); err != nil {
 			fmt.Printf("  Warning: could not verify Notes API connection: %v\n", err)
 			fmt.Print("  Continue anyway? (y/n): ")

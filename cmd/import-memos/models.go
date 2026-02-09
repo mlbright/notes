@@ -1,8 +1,35 @@
 package main
 
-import "time"
+import (
+	"encoding/json"
+	"strconv"
+	"time"
+)
 
 // --- Memos API models ---
+
+// ProtoInt64 handles protobuf int64 fields that are JSON-encoded as strings.
+type ProtoInt64 int64
+
+func (p *ProtoInt64) UnmarshalJSON(data []byte) error {
+	// Try as number first.
+	var n int64
+	if err := json.Unmarshal(data, &n); err == nil {
+		*p = ProtoInt64(n)
+		return nil
+	}
+	// Try as quoted string.
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return err
+	}
+	*p = ProtoInt64(n)
+	return nil
+}
 
 // MemosUser represents a user from the Memos API.
 type MemosUser struct {
@@ -22,11 +49,11 @@ type MemosListUsersResponse struct {
 
 // MemosAttachment represents an attachment on a memo.
 type MemosAttachment struct {
-	Name         string `json:"name"`         // e.g. "attachments/uid123"
-	Filename     string `json:"filename"`
-	Type         string `json:"type"`         // MIME type
-	Size         int64  `json:"size"`
-	ExternalLink string `json:"externalLink"`
+	Name         string     `json:"name"`         // e.g. "attachments/uid123"
+	Filename     string     `json:"filename"`
+	Type         string     `json:"type"`         // MIME type
+	Size         ProtoInt64 `json:"size"`
+	ExternalLink string     `json:"externalLink"`
 }
 
 // MemosMemo represents a memo from the Memos API.

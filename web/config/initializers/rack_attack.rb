@@ -1,8 +1,8 @@
-Rack::Attack.throttle("api/ip", limit: 300, period: 5.minutes) do |req|
+Rack::Attack.throttle("api/ip", limit: 3000, period: 5.minutes) do |req|
   req.ip if req.path.start_with?("/api/")
 end
 
-Rack::Attack.throttle("api/token", limit: 300, period: 5.minutes) do |req|
+Rack::Attack.throttle("api/token", limit: 3000, period: 5.minutes) do |req|
   if req.path.start_with?("/api/")
     req.env["HTTP_AUTHORIZATION"]&.split(" ")&.last
   end

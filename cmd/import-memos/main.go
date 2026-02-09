@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 const (
@@ -34,6 +35,7 @@ func main() {
 	memosURL := flag.String("memos-url", "", "Base URL of the Memos instance (e.g. http://localhost:8081)")
 	memosToken := flag.String("memos-token", "", "Personal Access Token for the Memos instance")
 	notesURL := flag.String("notes-url", "", "Base URL of the Notes instance (e.g. http://localhost:3000)")
+	delay := flag.Int("delay", 0, "Delay in milliseconds between Notes API calls (to avoid rate limiting)")
 	dryRun := flag.Bool("dry-run", false, "Print what would be done without writing to Notes")
 	flag.Parse()
 
@@ -44,9 +46,10 @@ func main() {
 	}
 
 	memosClient := NewMemosClient(*memosURL, *memosToken)
-	fmt.Print("Connecting to Memos... ")
+	fmt.Printf("Connecting to Memos at %s... ", *memosURL)
 	if err := memosClient.Ping(); err != nil {
 		fmt.Fprintf(os.Stderr, "\nError: cannot connect to Memos at %s: %v\n", *memosURL, err)
+		fmt.Fprintln(os.Stderr, "Make sure the Memos server is running and the URL is correct.")
 		os.Exit(1)
 	}
 	fmt.Println("OK")
@@ -68,10 +71,14 @@ func main() {
 	}
 
 	fmt.Printf("\nMigrating %d user(s)...\n", len(mappings))
+	apiDelay := time.Duration(*delay) * time.Millisecond
+	if apiDelay > 0 {
+		fmt.Printf("Using %v delay between Notes API calls\n", apiDelay)
+	}
 
 	allStats := make(map[string]*MigrationStats)
 	for _, m := range mappings {
-		stats := migrateUser(memosClient, *notesURL, m, *dryRun)
+		stats := migrateUser(memosClient, *notesURL, m, *dryRun, apiDelay)
 		allStats[m.MemosUsername] = stats
 	}
 
@@ -80,7 +87,7 @@ func main() {
 }
 
 // migrateUser performs the full migration for one Memos→Notes user mapping.
-func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping, dryRun bool) *MigrationStats {
+func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping, dryRun bool, apiDelay time.Duration) *MigrationStats {
 	stats := &MigrationStats{}
 	label := fmt.Sprintf("[%s]", mapping.MemosUsername)
 
@@ -88,7 +95,7 @@ func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping,
 
 	fmt.Printf("\n%s Step 1/3: Syncing tags...\n", label)
 	fmt.Printf("%s   Fetching tag stats from Memos...\n", label)
-	tagMap, err := syncTags(memosClient, notesClient, mapping.MemosUserName, dryRun, stats)
+	tagMap, err := syncTags(memosClient, notesClient, mapping.MemosUserName, dryRun, stats, apiDelay)
 	if err != nil {
 		msg := fmt.Sprintf("tag sync failed: %v", err)
 		fmt.Printf("%s Error: %s\n", label, msg)
@@ -110,7 +117,7 @@ func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping,
 
 	for i, memo := range memos {
 		progress := fmt.Sprintf("%s [%d/%d]", label, i+1, len(memos))
-		migrateOneMemo(memosClient, notesClient, memo, tagMap, progress, dryRun, stats)
+		migrateOneMemo(memosClient, notesClient, memo, tagMap, progress, dryRun, stats, apiDelay)
 	}
 
 	return stats
@@ -118,7 +125,7 @@ func migrateUser(memosClient *MemosClient, notesURL string, mapping UserMapping,
 
 // syncTags ensures all Memos tags exist in the Notes instance and returns a
 // name→ID map.
-func syncTags(memosClient *MemosClient, notesClient *NotesClient, memosUserName string, dryRun bool, stats *MigrationStats) (map[string]int, error) {
+func syncTags(memosClient *MemosClient, notesClient *NotesClient, memosUserName string, dryRun bool, stats *MigrationStats, apiDelay time.Duration) (map[string]int, error) {
 	// Get Memos tag names from user stats.
 	userStats, err := memosClient.GetUserStats(memosUserName)
 	if err != nil {
@@ -158,6 +165,9 @@ func syncTags(memosClient *MemosClient, notesClient *NotesClient, memosUserName 
 			continue
 		}
 
+		if apiDelay > 0 {
+			time.Sleep(apiDelay)
+		}
 		tag, err := notesClient.CreateTag(name, defaultTagColor)
 		if err != nil {
 			return nil, fmt.Errorf("creating tag %q: %w", name, err)
@@ -186,7 +196,7 @@ func extractTitle(content string) (title, body string) {
 }
 
 // migrateOneMemo creates a single note from a memo, including attachments.
-func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo MemosMemo, tagMap map[string]int, progress string, dryRun bool, stats *MigrationStats) {
+func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo MemosMemo, tagMap map[string]int, progress string, dryRun bool, stats *MigrationStats, apiDelay time.Duration) {
 	title, body := extractTitle(memo.Content)
 
 	// Resolve tag IDs.
@@ -216,6 +226,11 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 
 	fmt.Printf("  %s Creating note %q...", progress, desc)
 
+	// Delay to avoid rate limiting.
+	if apiDelay > 0 {
+		time.Sleep(apiDelay)
+	}
+
 	// Determine max_size: if body is longer than 32K, raise the limit.
 	maxSize := 0
 	if len(body) > 32768 {
@@ -234,6 +249,9 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 	// Archive if the memo was archived.
 	if memo.State == "ARCHIVED" {
 		fmt.Printf(" archiving...")
+		if apiDelay > 0 {
+			time.Sleep(apiDelay)
+		}
 		if err := notesClient.ArchiveNote(note.ID); err != nil {
 			msg := fmt.Sprintf("archiving note %d: %v", note.ID, err)
 			fmt.Printf("  %s Warning: %s\n", progress, msg)
@@ -246,8 +264,8 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 		fmt.Printf(" downloading %d attachment(s)...", nAttachments)
 		var files []FileData
 		for _, att := range memo.Attachments {
-			if att.Size > maxAttachmentBytes {
-				msg := fmt.Sprintf("skipping attachment %q (%d MB) — exceeds 25 MB limit", att.Filename, att.Size/(1024*1024))
+			if int64(att.Size) > maxAttachmentBytes {
+				msg := fmt.Sprintf("skipping attachment %q (%d MB) — exceeds 25 MB limit", att.Filename, int64(att.Size)/(1024*1024))
 				fmt.Printf("  %s Warning: %s\n", progress, msg)
 				stats.Errors = append(stats.Errors, msg)
 				continue
@@ -265,6 +283,9 @@ func migrateOneMemo(memosClient *MemosClient, notesClient *NotesClient, memo Mem
 
 		if len(files) > 0 {
 			fmt.Printf(" uploading %d file(s)...", len(files))
+			if apiDelay > 0 {
+				time.Sleep(apiDelay)
+			}
 			if err := notesClient.UploadAttachments(note.ID, files); err != nil {
 				msg := fmt.Sprintf("uploading attachments to note %d: %v", note.ID, err)
 				fmt.Printf("  %s Warning: %s\n", progress, msg)
