@@ -40,8 +40,6 @@ A Ruby on Rails notes application with companion Android and iOS apps built usin
 - Adjustable maximum note size with a 32K character default
 
 ### Editor
-- Toggle between WYSIWYG rich-text editing and raw markdown editing
-- WYSIWYG mode powered by Tiptap (ProseMirror-based); stores content as markdown
 - Click to open a note, edit button (or double-click on desktop) to enter edit mode
 
 ### Attachments

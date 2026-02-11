@@ -8,7 +8,8 @@ module NotesHelper
       fenced_code_blocks: true,
       strikethrough: true,
       highlight: true,
-      no_intra_emphasis: true
+      no_intra_emphasis: true,
+      lax_spacing: true
     )
     markdown.render(text).html_safe
   end
