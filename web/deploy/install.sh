@@ -136,6 +136,25 @@ su -s /bin/bash "$APP_USER" -c "mkdir -p $APP_DIR/tmp/pids $APP_DIR/tmp/sockets 
 # ---------------------------------------------------------------------------
 green "==> Installing systemd service..."
 cp "$APP_DIR/deploy/notes-web.service" /etc/systemd/system/notes-web.service
+
+# Create a drop-in override for OAuth credentials (if not already present).
+# Operators fill in the real values after install.
+OVERRIDE_DIR="/etc/systemd/system/notes-web.service.d"
+if [[ ! -f "$OVERRIDE_DIR/oauth.conf" ]]; then
+  green "==> Creating systemd OAuth credentials override..."
+  mkdir -p "$OVERRIDE_DIR"
+  cat > "$OVERRIDE_DIR/oauth.conf" <<'EOF'
+# Google OAuth2 credentials for the Notes app.
+# Replace the placeholder values and then run:
+#   sudo systemctl daemon-reload && sudo systemctl restart notes-web
+[Service]
+Environment=GOOGLE_CLIENT_ID=changeme
+Environment=GOOGLE_CLIENT_SECRET=changeme
+EOF
+  chmod 600 "$OVERRIDE_DIR/oauth.conf"
+  yellow "NOTE: Edit $OVERRIDE_DIR/oauth.conf with your Google OAuth2 credentials."
+fi
+
 systemctl daemon-reload
 systemctl enable notes-web.service
 

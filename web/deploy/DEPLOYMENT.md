@@ -205,11 +205,51 @@ them.
 | `RAILS_ENV`           | `production`| Rails environment                      |
 | `PORT`                | `3000`      | Puma listen port                       |
 | `RAILS_MASTER_KEY`    | —           | Decrypts `credentials.yml.enc`         |
+| `GOOGLE_CLIENT_ID`    | —           | Google OAuth2 client ID                |
+| `GOOGLE_CLIENT_SECRET` | —          | Google OAuth2 client secret            |
 | `SOLID_QUEUE_IN_PUMA` | `true`      | Run Solid Queue inside Puma            |
 | `RAILS_MAX_THREADS`   | `3`         | Puma threads (also sets DB pool)       |
 | `WEB_CONCURRENCY`     | `1`         | Puma worker processes                  |
 | `RAILS_LOG_LEVEL`     | `info`      | `debug`, `info`, `warn`, `error`       |
 | `RUBY_YJIT_ENABLE`    | `1`         | Enable YJIT JIT compiler              |
+
+### OAuth Credentials
+
+Google OAuth2 credentials are provided to the service via a systemd drop-in
+override. The install script creates a placeholder at
+`/etc/systemd/system/notes-web.service.d/oauth.conf`.
+
+Edit it with your real values:
+
+```bash
+sudo systemctl edit notes-web   # opens the override in $EDITOR
+```
+
+Or edit the file directly:
+
+```bash
+sudo nano /etc/systemd/system/notes-web.service.d/oauth.conf
+```
+
+The file should contain:
+
+```ini
+[Service]
+Environment=GOOGLE_CLIENT_ID=your-client-id
+Environment=GOOGLE_CLIENT_SECRET=your-client-secret
+```
+
+Then reload and restart:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart notes-web
+```
+
+> **Note:** Environment variables take precedence over values stored in Rails
+> encrypted credentials (`credentials.yml.enc`). If you prefer to use
+> credentials instead, remove or leave the override values as `changeme` and
+> store the secrets via `bin/rails credentials:edit` under the `google:` key.
 
 ## Backups with Litestream
 

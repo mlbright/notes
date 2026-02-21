@@ -8,7 +8,7 @@ A Ruby on Rails notes application with companion Android and iOS apps built usin
 - Ruby on Rails backend with SQLite database
 - Mobile apps via Turbo Native, sharing the web UI with native navigation wrappers
 - Attachments stored on local disk via Active Storage
-- Deploy to a VPS with nginx (reverse proxy + TLS) and systemd
+- Deploy to a VPS with Caddy (reverse proxy + automatic TLS) and systemd
 
 ## Data model
 
@@ -87,7 +87,7 @@ A Ruby on Rails notes application with companion Android and iOS apps built usin
 ## Deployment
 
 - Target: VPS (Ubuntu/Debian)
-- nginx as reverse proxy with TLS (Let's Encrypt)
+- Caddy as reverse proxy with automatic TLS (Let's Encrypt / ZeroSSL)
 - systemd unit(s) to manage the Rails app (Puma) and Solid Queue workers
 - SQLite database with Litestream for continuous replication/backups
 - Active Storage files backed up alongside the database

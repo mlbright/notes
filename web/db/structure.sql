@@ -61,10 +61,6 @@ CREATE VIRTUAL TABLE notes_search_index USING fts5(
         tokenize='porter'
       )
 /* notes_search_index(title,body) */;
-CREATE TABLE IF NOT EXISTS 'notes_search_index_data'(id INTEGER PRIMARY KEY, block BLOB);
-CREATE TABLE IF NOT EXISTS 'notes_search_index_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS 'notes_search_index_docsize'(id INTEGER PRIMARY KEY, sz BLOB);
-CREATE TABLE IF NOT EXISTS 'notes_search_index_config'(k PRIMARY KEY, v) WITHOUT ROWID;
 CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
         INSERT INTO notes_search_index(rowid, title, body) VALUES (new.id, new.title, new.body);
       END;

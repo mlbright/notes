@@ -183,12 +183,14 @@ Edit `config/deploy.yml` to configure:
 
 ### Manual VPS Deployment
 
-Target: Ubuntu/Debian VPS with nginx + systemd.
+Target: Ubuntu/Debian VPS with Caddy + systemd.
 
 1. **Install dependencies:**
    ```bash
-   sudo apt-get install ruby sqlite3 libsqlite3-dev libvips nginx
+   sudo apt-get install ruby sqlite3 libsqlite3-dev libvips
    ```
+
+   Install Caddy following [the official instructions](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
 
 2. **Clone and set up:**
    ```bash
@@ -230,29 +232,17 @@ Target: Ubuntu/Debian VPS with nginx + systemd.
    WantedBy=multi-user.target
    ```
 
-6. **Configure nginx** as a reverse proxy:
-   ```nginx
-   server {
-       listen 80;
-       server_name notes.example.com;
-
-       location / {
-           proxy_pass http://127.0.0.1:3000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
+6. **Configure Caddy** as a reverse proxy (`/etc/caddy/Caddyfile`):
+   ```caddyfile
+   notes.example.com {
+       reverse_proxy 127.0.0.1:3000
    }
    ```
 
-7. **TLS** — Use Let's Encrypt with Certbot:
-   ```bash
-   sudo apt-get install certbot python3-certbot-nginx
-   sudo certbot --nginx -d notes.example.com
-   ```
+   Caddy automatically provisions and renews TLS certificates via
+   Let's Encrypt — no separate certbot step needed.
 
-8. **Backups** — Use [Litestream](https://litestream.io) for continuous SQLite replication:
+7. **Backups** — Use [Litestream](https://litestream.io) for continuous SQLite replication:
    ```bash
    litestream replicate /opt/notes/web/storage/production.sqlite3 s3://bucket/notes/
    ```

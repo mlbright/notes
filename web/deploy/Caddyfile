@@ -1,6 +1,6 @@
 notes.example.com {
 	# Serve static assets directly with immutable caching
-	handle_path /assets/* {
+	handle /assets/* {
 		root * /opt/notes/web/public
 		file_server {
 			precompressed gzip
