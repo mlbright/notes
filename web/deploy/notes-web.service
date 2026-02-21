@@ -1,0 +1,44 @@
+[Unit]
+Description=Notes Web (Puma + Solid Queue)
+Documentation=https://github.com/your-org/notes
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=notes
+Group=notes
+WorkingDirectory=/opt/notes/web
+ExecStart=/opt/notes/web/bin/thrust /opt/notes/web/bin/rails server -e production
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=on-failure
+RestartSec=5
+SyslogIdentifier=notes-web
+
+# Environment
+Environment=RAILS_ENV=production
+Environment=PORT=3000
+Environment=SOLID_QUEUE_IN_PUMA=true
+Environment=RAILS_LOG_LEVEL=info
+Environment=PIDFILE=/opt/notes/web/tmp/pids/server.pid
+Environment=RUBY_YJIT_ENABLE=1
+EnvironmentFile=-/opt/notes/web/.env
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/notes/web/storage
+ReadWritePaths=/opt/notes/web/log
+ReadWritePaths=/opt/notes/web/tmp
+
+# Resource limits
+LimitNOFILE=65536
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

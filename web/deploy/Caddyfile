@@ -1,0 +1,35 @@
+notes.example.com {
+	# Serve static assets directly with immutable caching
+	handle_path /assets/* {
+		root * /opt/notes/web/public
+		file_server {
+			precompressed gzip
+		}
+		header Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# Serve other static files from public/
+	handle {
+		root * /opt/notes/web/public
+		@static file
+		handle @static {
+			file_server
+		}
+
+		# Reverse proxy to Puma (via Thruster)
+		handle {
+			reverse_proxy 127.0.0.1:3000 {
+				header_up X-Forwarded-Proto {scheme}
+			}
+		}
+	}
+
+	# Max upload size (matches attachment limit)
+	request_body {
+		max_size 25MB
+	}
+
+	log {
+		output file /var/log/caddy/notes-access.log
+	}
+}
