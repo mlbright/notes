@@ -72,7 +72,7 @@ class User < ApplicationRecord
 
   def set_defaults
     self.role ||= :user
-    self.session_timeout ||= 3600
+    self.session_timeout ||= 604800
   end
 
   def must_have_auth_method

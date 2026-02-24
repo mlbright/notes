@@ -3,7 +3,7 @@ FactoryBot.define do
     sequence(:name) { |n| "User #{n}" }
     sequence(:email) { |n| "user#{n}@example.com" }
     role { :user }
-    session_timeout { 3600 }
+    session_timeout { 604800 }
     preferences { nil }
     sequence(:uid) { |n| "google_uid_#{n}" }
     provider { "google_oauth2" }

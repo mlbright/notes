@@ -1,0 +1,25 @@
+<div class="max-w-sm mx-auto">
+  <h1 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Session timeout</h1>
+
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <p class="text-sm text-gray-600 mb-4">Choose how long you can be inactive before being signed out automatically.</p>
+
+    <%= form_with url: session_timeout_path, method: :patch, class: "space-y-4" do |f| %>
+      <div>
+        <% @timeout_options.each do |option| %>
+          <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+            <%= f.radio_button :session_timeout, option[:value],
+                checked: @current_timeout == option[:value],
+                class: "text-amber-500 focus:ring-amber-400" %>
+            <span class="text-sm text-gray-700"><%= option[:label] %></span>
+          </label>
+        <% end %>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <%= f.submit "Save", class: "px-5 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition cursor-pointer shadow-sm" %>
+        <%= link_to "Cancel", notes_path, class: "text-sm text-gray-500 hover:text-gray-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>

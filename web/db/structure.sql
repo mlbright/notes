@@ -61,6 +61,10 @@ CREATE VIRTUAL TABLE notes_search_index USING fts5(
         tokenize='porter'
       )
 /* notes_search_index(title,body) */;
+CREATE TABLE IF NOT EXISTS 'notes_search_index_data'(id INTEGER PRIMARY KEY, block BLOB);
+CREATE TABLE IF NOT EXISTS 'notes_search_index_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS 'notes_search_index_docsize'(id INTEGER PRIMARY KEY, sz BLOB);
+CREATE TABLE IF NOT EXISTS 'notes_search_index_config'(k PRIMARY KEY, v) WITHOUT ROWID;
 CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
         INSERT INTO notes_search_index(rowid, title, body) VALUES (new.id, new.title, new.body);
       END;
@@ -71,11 +75,12 @@ CREATE TRIGGER notes_au AFTER UPDATE ON notes BEGIN
         INSERT INTO notes_search_index(notes_search_index, rowid, title, body) VALUES('delete', old.id, old.title, old.body);
         INSERT INTO notes_search_index(rowid, title, body) VALUES (new.id, new.title, new.body);
       END;
-CREATE TABLE IF NOT EXISTS "users" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "name" varchar NOT NULL, "email" varchar NOT NULL, "role" integer DEFAULT 0 NOT NULL, "session_timeout" integer DEFAULT 3600 NOT NULL, "preferences" text, "uid" varchar, "provider" varchar DEFAULT NULL, "api_token" varchar, "refresh_token" varchar, "token_expires_at" datetime(6), "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL, "password_digest" varchar);
-CREATE UNIQUE INDEX "index_users_on_email" ON "users" ("email");
-CREATE UNIQUE INDEX "index_users_on_uid" ON "users" ("uid");
-CREATE UNIQUE INDEX "index_users_on_api_token" ON "users" ("api_token");
+CREATE TABLE IF NOT EXISTS "users" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "name" varchar NOT NULL, "email" varchar NOT NULL, "role" integer DEFAULT 0 NOT NULL, "session_timeout" integer DEFAULT 604800 NOT NULL, "preferences" text, "uid" varchar, "provider" varchar, "api_token" varchar, "refresh_token" varchar, "token_expires_at" datetime(6), "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL, "password_digest" varchar);
+CREATE UNIQUE INDEX "index_users_on_email" ON "users" ("email") /*application='Web'*/;
+CREATE UNIQUE INDEX "index_users_on_uid" ON "users" ("uid") /*application='Web'*/;
+CREATE UNIQUE INDEX "index_users_on_api_token" ON "users" ("api_token") /*application='Web'*/;
 INSERT INTO "schema_migrations" (version) VALUES
+('20260224000000'),
 ('20260208174535'),
 ('20260208171402'),
 ('20260208170506'),

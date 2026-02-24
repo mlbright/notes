@@ -64,6 +64,7 @@
                   <p class="text-xs text-gray-500 truncate"><%= current_user.email %></p>
                 </div>
                 <%= link_to "Change password", edit_password_path, class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
+                <%= link_to "Session timeout", edit_session_timeout_path, class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
                 <%= link_to "API docs", api_docs_path, class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
                 <%= button_to "Sign out", logout_path, method: :delete, class: "w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" %>
               </div>

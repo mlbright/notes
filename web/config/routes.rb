@@ -12,6 +12,9 @@ Rails.application.routes.draw do
   # Password management
   resource :password, only: [ :edit, :update ]
 
+  # Session timeout settings
+  resource :session_timeout, only: [ :edit, :update ]
+
   # API documentation
   get "api/docs", to: "api_docs#index", as: :api_docs
 

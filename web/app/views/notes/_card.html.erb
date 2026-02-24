@@ -5,7 +5,13 @@
     <% end %>
 
     <% if note.body.present? %>
-      <p class="text-gray-600 text-xs leading-relaxed line-clamp-8"><%= truncate(strip_tags(render_markdown(note.body)), length: 280) %></p>
+      <div class="text-gray-600 text-xs leading-relaxed line-clamp-8 prose prose-sm prose-gray max-w-none
+                  prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0
+                  prose-headings:text-xs prose-headings:font-semibold prose-headings:my-1
+                  prose-pre:text-xs prose-pre:my-1 prose-code:text-xs
+                  prose-blockquote:my-1 prose-blockquote:text-xs">
+        <%= render_markdown(truncate(note.body, length: 500, omission: "…")) %>
+      </div>
     <% end %>
   </div>
 
