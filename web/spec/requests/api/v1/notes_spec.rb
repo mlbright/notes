@@ -187,4 +187,90 @@ RSpec.describe "Api::V1::Notes", type: :request do
       expect(json["content"]).to include("Content")
     end
   end
+
+  describe "tagging" do
+    it "includes tags in note index response" do
+      note = create(:note, user: user, title: "Tagged Note")
+      tag = create(:tag, user: user, name: "work")
+      note.tags << tag
+
+      get "/api/v1/notes", headers: headers
+      json = JSON.parse(response.body)
+      note_json = json["notes"].first
+      expect(note_json["tags"]).to be_present
+      expect(note_json["tags"].first["name"]).to eq("work")
+    end
+
+    it "assigns tags on note creation" do
+      tag = create(:tag, user: user, name: "important")
+      post "/api/v1/notes",
+        params: { title: "New", body: "Content", tag_ids: [ tag.id ] }.to_json,
+        headers: headers
+      expect(response).to have_http_status(:created)
+
+      json = JSON.parse(response.body)
+      expect(json["tags"].first["name"]).to eq("important")
+    end
+
+    it "updates tags on note update" do
+      note = create(:note, user: user)
+      tag1 = create(:tag, user: user, name: "old-tag")
+      tag2 = create(:tag, user: user, name: "new-tag")
+      note.tags << tag1
+
+      patch "/api/v1/notes/#{note.id}",
+        params: { tag_ids: [ tag2.id ] }.to_json,
+        headers: headers
+      expect(response).to have_http_status(:ok)
+
+      json = JSON.parse(response.body)
+      expect(json["tags"].map { |t| t["name"] }).to eq([ "new-tag" ])
+    end
+
+    it "prevents assigning other users' tags" do
+      other_user = create(:user)
+      other_tag = create(:tag, user: other_user, name: "foreign")
+
+      post "/api/v1/notes",
+        params: { title: "Test", body: "Content", tag_ids: [ other_tag.id ] }.to_json,
+        headers: headers
+      expect(response).to have_http_status(:created)
+
+      json = JSON.parse(response.body)
+      expect(json["tags"]).to be_empty
+    end
+
+    it "includes tags in search results" do
+      note = create(:note, user: user, title: "Searchable", body: "Find me")
+      tag = create(:tag, user: user, name: "searchable-tag")
+      note.tags << tag
+
+      get "/api/v1/notes/search", params: { q: "Searchable" }, headers: headers
+      json = JSON.parse(response.body)
+      expect(json["notes"].first["tags"]).to be_present
+      expect(json["notes"].first["tags"].first["name"]).to eq("searchable-tag")
+    end
+
+    it "includes tags in trash results" do
+      note = create(:note, :trashed, user: user)
+      tag = create(:tag, user: user, name: "trash-tag")
+      note.tags << tag
+
+      get "/api/v1/notes/trash", headers: headers
+      json = JSON.parse(response.body)
+      expect(json["notes"].first["tags"]).to be_present
+    end
+
+    it "filters notes by tag name" do
+      tag = create(:tag, user: user, name: "priority")
+      tagged = create(:note, user: user, title: "Tagged")
+      untagged = create(:note, user: user, title: "Untagged")
+      tagged.tags << tag
+
+      get "/api/v1/notes", params: { tag: "priority" }, headers: headers
+      json = JSON.parse(response.body)
+      expect(json["notes"].size).to eq(1)
+      expect(json["notes"].first["title"]).to eq("Tagged")
+    end
+  end
 end

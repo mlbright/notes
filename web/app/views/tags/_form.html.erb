@@ -1,0 +1,10 @@
+<div id="tag_form">
+  <%= form_with model: tag, url: tags_path, class: "flex items-center gap-2 bg-white rounded-xl border border-gray-200 shadow-sm p-3" do |f| %>
+    <% if tag.errors.any? %>
+      <div class="absolute -mt-16 text-red-600 text-xs"><%= tag.errors.full_messages.join(", ") %></div>
+    <% end %>
+    <%= f.text_field :name, placeholder: "Create new tag...", class: "flex-1 text-sm border-0 p-0 focus:ring-0 bg-transparent placeholder-gray-400" %>
+    <%= f.color_field :color, value: tag.color.presence || "#6b7280", class: "w-8 h-8 rounded-lg border-gray-200 cursor-pointer flex-shrink-0" %>
+    <%= f.submit "Add", class: "px-4 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition cursor-pointer" %>
+  <% end %>
+</div>

@@ -8,8 +8,8 @@ module Api
         notes = apply_filters(notes)
         notes = apply_sorting(notes)
 
-        pagy, notes = pagy(notes)
-        render json: { notes: notes.as_json(include_tags: true), pagination: pagy_metadata(pagy) }
+        pagy, notes = pagy(notes.includes(:tags, :shared_users))
+        render json: { notes: notes.map { |n| note_json(n) }, pagination: pagy_metadata(pagy) }
       end
 
       def show
@@ -100,13 +100,13 @@ module Api
         end
 
         notes = current_user.accessible_notes.search(params[:q]).where(trashed: false)
-        pagy, notes = pagy(notes)
-        render json: { notes: notes.as_json(include_tags: true), pagination: pagy_metadata(pagy) }
+        pagy, notes = pagy(notes.includes(:tags, :shared_users))
+        render json: { notes: notes.map { |n| note_json(n) }, pagination: pagy_metadata(pagy) }
       end
 
       def trash
-        pagy, notes = pagy(current_user.notes.trashed.ordered)
-        render json: { notes: notes.as_json(include_tags: true), pagination: pagy_metadata(pagy) }
+        pagy, notes = pagy(current_user.notes.trashed.ordered.includes(:tags, :shared_users))
+        render json: { notes: notes.map { |n| note_json(n) }, pagination: pagy_metadata(pagy) }
       end
 
       def bulk_export
@@ -127,7 +127,7 @@ module Api
       end
 
       def apply_filters(notes)
-        case params[:filter]
+        notes = case params[:filter]
         when "pinned"
           notes.pinned.where(trashed: false)
         when "archived"
@@ -137,6 +137,13 @@ module Api
         else
           notes.active
         end
+
+        if params[:tag].present?
+          tag = current_user.tags.find_by(name: params[:tag])
+          notes = notes.joins(:note_tags).where(note_tags: { tag_id: tag.id }) if tag
+        end
+
+        notes
       end
 
       def apply_sorting(notes)

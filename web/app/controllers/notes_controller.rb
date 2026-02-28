@@ -23,6 +23,7 @@ class NotesController < ApplicationController
     @note = current_user.notes.build(note_params)
 
     if @note.save
+      apply_tags(@note)
       redirect_to @note, notice: "Note created."
     else
       render :new, status: :unprocessable_entity
@@ -34,6 +35,7 @@ class NotesController < ApplicationController
 
   def update
     if @note.update(note_params)
+      apply_tags(@note)
       redirect_to @note, notice: "Note updated."
     else
       render :edit, status: :unprocessable_entity
@@ -122,7 +124,14 @@ class NotesController < ApplicationController
   private
 
   def note_params
-    params.require(:note).permit(:title, :body, :pinned, :max_size, attachments: [])
+    params.require(:note).permit(:title, :body, :pinned, :max_size, attachments: [], tag_ids: [])
+  end
+
+  def apply_tags(note)
+    if params[:note]&.key?(:tag_ids)
+      tag_ids = Array(params[:note][:tag_ids]).reject(&:blank?).map(&:to_i)
+      note.tag_ids = tag_ids & current_user.tag_ids
+    end
   end
 
   def require_edit_permission
@@ -132,7 +141,7 @@ class NotesController < ApplicationController
   end
 
   def apply_filters(notes)
-    case params[:filter]
+    notes = case params[:filter]
     when "pinned"
       notes.pinned.where(trashed: false)
     when "archived"
@@ -142,6 +151,13 @@ class NotesController < ApplicationController
     else
       notes.active
     end
+
+    if params[:tag].present?
+      tag = current_user.tags.find_by(name: params[:tag])
+      notes = notes.joins(:note_tags).where(note_tags: { tag_id: tag.id }) if tag
+    end
+
+    notes
   end
 
   def generate_zip(files)
