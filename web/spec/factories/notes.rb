@@ -26,5 +26,10 @@ FactoryBot.define do
       trashed { true }
       trashed_at { 31.days.ago }
     end
+
+    trait :checklist do
+      checklist { true }
+      body { "- [ ] Buy groceries\n- [ ] Clean house\n- [x] Send email" }
+    end
   end
 end

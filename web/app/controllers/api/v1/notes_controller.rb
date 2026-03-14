@@ -1,7 +1,7 @@
 module Api
   module V1
     class NotesController < Api::BaseController
-      before_action :set_note, only: [ :show, :update, :destroy, :restore, :archive, :unarchive, :toggle_pin, :duplicate, :merge, :export ]
+      before_action :set_note, only: [ :show, :update, :destroy, :restore, :archive, :unarchive, :toggle_pin, :toggle_checklist, :toggle_checklist_item, :duplicate, :merge, :export ]
 
       def index
         notes = current_user.accessible_notes
@@ -75,6 +75,25 @@ module Api
         render json: note_json(@note)
       end
 
+      def toggle_checklist
+        unless @note.editable_by?(current_user)
+          render json: { error: "Permission denied" }, status: :forbidden
+          return
+        end
+        @note.toggle_checklist!
+        render json: note_json(@note)
+      end
+
+      def toggle_checklist_item
+        unless @note.editable_by?(current_user)
+          render json: { error: "Permission denied" }, status: :forbidden
+          return
+        end
+        line_index = params[:line_index].to_i
+        @note.toggle_checklist_item!(line_index)
+        render json: note_json(@note)
+      end
+
       def duplicate
         new_note = @note.duplicate!(new_owner: current_user)
         render json: note_json(new_note), status: :created
@@ -123,7 +142,7 @@ module Api
       private
 
       def note_params
-        params.permit(:title, :body, :pinned, :max_size, :created_at, :updated_at)
+        params.permit(:title, :body, :pinned, :checklist, :max_size, :created_at, :updated_at)
       end
 
       def apply_filters(notes)

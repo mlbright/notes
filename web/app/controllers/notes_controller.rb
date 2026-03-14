@@ -1,7 +1,7 @@
 class NotesController < ApplicationController
   before_action :require_login
-  before_action :set_note, only: [ :show, :edit, :update, :destroy, :restore, :archive, :unarchive, :toggle_pin, :duplicate, :merge, :export ]
-  before_action :require_edit_permission, only: [ :edit, :update, :archive, :unarchive, :toggle_pin ]
+  before_action :set_note, only: [ :show, :edit, :update, :destroy, :restore, :archive, :unarchive, :toggle_pin, :toggle_checklist, :toggle_checklist_item, :duplicate, :merge, :export ]
+  before_action :require_edit_permission, only: [ :edit, :update, :archive, :unarchive, :toggle_pin, :toggle_checklist, :toggle_checklist_item ]
 
   def index
     notes = current_user.accessible_notes
@@ -76,6 +76,20 @@ class NotesController < ApplicationController
     redirect_back fallback_location: notes_path
   end
 
+  def toggle_checklist
+    @note.toggle_checklist!
+    redirect_back fallback_location: @note
+  end
+
+  def toggle_checklist_item
+    line_index = params[:line_index].to_i
+    @note.toggle_checklist_item!(line_index)
+    respond_to do |format|
+      format.turbo_stream { render turbo_stream: turbo_stream.replace("checklist_body", partial: "notes/checklist_body", locals: { note: @note }) }
+      format.html { redirect_back fallback_location: @note }
+    end
+  end
+
   def duplicate
     new_note = @note.duplicate!(new_owner: current_user)
     redirect_to new_note, notice: "Note duplicated."
@@ -124,7 +138,7 @@ class NotesController < ApplicationController
   private
 
   def note_params
-    params.require(:note).permit(:title, :body, :pinned, :max_size, attachments: [], tag_ids: [])
+    params.require(:note).permit(:title, :body, :pinned, :checklist, :max_size, attachments: [], tag_ids: [])
   end
 
   def apply_tags(note)

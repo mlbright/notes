@@ -1,0 +1,25 @@
+<div id="checklist_body" data-controller="checklist">
+  <% note.body.to_s.lines(chomp: true).each_with_index do |line, index| %>
+    <% if line.strip.empty? %>
+      <div class="h-2"></div>
+    <% elsif line.match?(/^\s*- \[x\]/i) %>
+      <label class="flex items-start gap-3 py-1.5 group cursor-pointer">
+        <input type="checkbox" checked
+          data-action="change->checklist#toggle"
+          data-checklist-url="<%= toggle_checklist_item_note_path(note, line_index: index) %>"
+          class="mt-0.5 h-5 w-5 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer flex-shrink-0">
+        <span class="text-sm text-gray-400 line-through"><%= line.sub(/^\s*- \[x\]\s*/i, "") %></span>
+      </label>
+    <% elsif line.match?(/^\s*- \[ \]/) %>
+      <label class="flex items-start gap-3 py-1.5 group cursor-pointer">
+        <input type="checkbox"
+          data-action="change->checklist#toggle"
+          data-checklist-url="<%= toggle_checklist_item_note_path(note, line_index: index) %>"
+          class="mt-0.5 h-5 w-5 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer flex-shrink-0">
+        <span class="text-sm text-gray-700"><%= line.sub(/^\s*- \[ \]\s*/, "") %></span>
+      </label>
+    <% else %>
+      <div class="py-1 text-sm text-gray-700"><%= line %></div>
+    <% end %>
+  <% end %>
+</div>

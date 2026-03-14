@@ -81,6 +81,67 @@ RSpec.describe Note, type: :model do
     end
   end
 
+  describe "#toggle_checklist!" do
+    it "enables checklist mode and converts body lines to checklist items" do
+      note = create(:note, body: "Buy milk\nClean house")
+      note.toggle_checklist!
+      expect(note.checklist?).to be true
+      expect(note.body).to include("- [ ] Buy milk")
+      expect(note.body).to include("- [ ] Clean house")
+    end
+
+    it "disables checklist mode without modifying body" do
+      note = create(:note, :checklist)
+      original_body = note.body
+      note.toggle_checklist!
+      expect(note.checklist?).to be false
+      expect(note.body).to eq(original_body)
+    end
+
+    it "preserves existing checklist markers when enabling" do
+      note = create(:note, body: "- [x] Done item\n- [ ] Todo item\nPlain line")
+      note.toggle_checklist!
+      expect(note.body).to include("- [x] Done item")
+      expect(note.body).to include("- [ ] Todo item")
+      expect(note.body).to include("- [ ] Plain line")
+    end
+
+    it "strips existing bullet markers when converting" do
+      note = create(:note, body: "- Buy milk\n* Clean house")
+      note.toggle_checklist!
+      expect(note.body).to include("- [ ] Buy milk")
+      expect(note.body).to include("- [ ] Clean house")
+    end
+  end
+
+  describe "#toggle_checklist_item!" do
+    it "checks an unchecked item" do
+      note = create(:note, :checklist)
+      note.toggle_checklist_item!(0)
+      expect(note.body.lines(chomp: true)[0]).to match(/- \[x\] Buy groceries/)
+    end
+
+    it "unchecks a checked item" do
+      note = create(:note, :checklist)
+      note.toggle_checklist_item!(2)
+      expect(note.body.lines(chomp: true)[2]).to match(/- \[ \] Send email/)
+    end
+
+    it "does nothing for out-of-range index" do
+      note = create(:note, :checklist)
+      original_body = note.body
+      note.toggle_checklist_item!(99)
+      expect(note.body).to eq(original_body)
+    end
+
+    it "does nothing when checklist mode is off" do
+      note = create(:note, body: "- [ ] Item")
+      original_body = note.body
+      note.toggle_checklist_item!(0)
+      expect(note.body).to eq(original_body)
+    end
+  end
+
   describe "#duplicate!" do
     it "creates a copy of the note" do
       user = create(:user)

@@ -40,6 +40,33 @@ class Note < ApplicationRecord
     update!(pinned: !pinned)
   end
 
+  def toggle_checklist!
+    if checklist?
+      update!(checklist: false)
+    else
+      convert_body_to_checklist!
+      update!(checklist: true)
+    end
+  end
+
+  def toggle_checklist_item!(line_index)
+    return unless checklist? && body.present?
+
+    lines = body.lines(chomp: true)
+    return unless line_index >= 0 && line_index < lines.length
+
+    line = lines[line_index]
+    lines[line_index] = if line.match?(/^\s*- \[x\]/i)
+      line.sub(/- \[x\]/i, "- [ ]")
+    elsif line.match?(/^\s*- \[ \]/)
+      line.sub("- [ ]", "- [x]")
+    else
+      line
+    end
+
+    update!(body: lines.join("\n"))
+  end
+
   def duplicate!(new_owner: user)
     new_note = dup
     new_note.user = new_owner
@@ -89,5 +116,21 @@ class Note < ApplicationRecord
       version_number: next_version,
       metadata: { changed_at: Time.current }.to_json
     )
+  end
+
+  def convert_body_to_checklist!
+    return if body.blank?
+
+    lines = body.lines(chomp: true)
+    converted = lines.map do |line|
+      if line.match?(/^\s*- \[[ x]\]/i)
+        line
+      elsif line.strip.empty?
+        line
+      else
+        "- [ ] #{line.sub(/^\s*[-*]\s*/, '')}"
+      end
+    end
+    self.body = converted.join("\n")
   end
 end

@@ -5,6 +5,25 @@
     <% end %>
 
     <% if note.body.present? %>
+      <% if note.checklist? %>
+        <div class="text-xs text-gray-600 leading-relaxed space-y-0.5">
+          <% note.body.lines(chomp: true).reject { |l| l.strip.empty? }.first(8).each do |line| %>
+            <% if line.match?(/^\s*- \[x\]/i) %>
+              <div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="line-through text-gray-400 truncate"><%= line.sub(/^\s*- \[x\]\s*/i, "") %></span>
+              </div>
+            <% elsif line.match?(/^\s*- \[ \]/) %>
+              <div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>
+                <span class="truncate"><%= line.sub(/^\s*- \[ \]\s*/, "") %></span>
+              </div>
+            <% else %>
+              <div class="truncate"><%= line %></div>
+            <% end %>
+          <% end %>
+        </div>
+      <% else %>
       <div class="text-gray-600 text-xs leading-relaxed line-clamp-8 prose prose-sm prose-gray max-w-none
                   prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0
                   prose-headings:text-xs prose-headings:font-semibold prose-headings:my-1
@@ -12,6 +31,7 @@
                   prose-blockquote:my-1 prose-blockquote:text-xs">
         <%= render_markdown(truncate(note.body, length: 500, omission: "…")) %>
       </div>
+      <% end %>
     <% end %>
   </div>
 
@@ -28,6 +48,9 @@
     <div class="flex items-center space-x-2">
       <% if note.pinned? %>
         <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      <% end %>
+      <% if note.checklist? %>
+        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
       <% end %>
       <% if note.attachments.any? %>
         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>

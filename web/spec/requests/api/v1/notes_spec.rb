@@ -135,6 +135,49 @@ RSpec.describe "Api::V1::Notes", type: :request do
     end
   end
 
+  describe "PATCH /api/v1/notes/:id/toggle_checklist" do
+    it "enables checklist mode and converts body" do
+      note = create(:note, user: user, body: "Buy milk\nClean house")
+      patch "/api/v1/notes/#{note.id}/toggle_checklist", headers: headers
+      expect(response).to have_http_status(:ok)
+
+      note.reload
+      expect(note.checklist?).to be true
+      expect(note.body).to include("- [ ] Buy milk")
+    end
+
+    it "disables checklist mode" do
+      note = create(:note, :checklist, user: user)
+      patch "/api/v1/notes/#{note.id}/toggle_checklist", headers: headers
+      expect(response).to have_http_status(:ok)
+      expect(note.reload.checklist?).to be false
+    end
+
+    it "returns 404 for non-owner without access" do
+      owner = create(:user)
+      note = create(:note, user: owner, body: "Test")
+
+      patch "/api/v1/notes/#{note.id}/toggle_checklist", headers: headers
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "PATCH /api/v1/notes/:id/toggle_checklist_item" do
+    it "checks an unchecked item" do
+      note = create(:note, :checklist, user: user)
+      patch "/api/v1/notes/#{note.id}/toggle_checklist_item", params: { line_index: 0 }.to_json, headers: headers
+      expect(response).to have_http_status(:ok)
+      expect(note.reload.body.lines(chomp: true)[0]).to match(/- \[x\] Buy groceries/)
+    end
+
+    it "unchecks a checked item" do
+      note = create(:note, :checklist, user: user)
+      patch "/api/v1/notes/#{note.id}/toggle_checklist_item", params: { line_index: 2 }.to_json, headers: headers
+      expect(response).to have_http_status(:ok)
+      expect(note.reload.body.lines(chomp: true)[2]).to match(/- \[ \] Send email/)
+    end
+  end
+
   describe "POST /api/v1/notes/:id/duplicate" do
     it "duplicates a note" do
       note = create(:note, user: user, title: "Original")

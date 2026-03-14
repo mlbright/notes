@@ -13,7 +13,7 @@ FOREIGN KEY ("blob_id")
   REFERENCES "active_storage_blobs" ("id")
 );
 CREATE UNIQUE INDEX "index_active_storage_variant_records_uniqueness" ON "active_storage_variant_records" ("blob_id", "variation_digest") /*application='Web'*/;
-CREATE TABLE IF NOT EXISTS "notes" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "title" varchar, "body" text, "pinned" boolean DEFAULT FALSE NOT NULL, "archived" boolean DEFAULT FALSE NOT NULL, "trashed" boolean DEFAULT FALSE NOT NULL, "trashed_at" datetime(6), "max_size" integer DEFAULT 32768 NOT NULL, "user_id" integer NOT NULL, "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL, CONSTRAINT "fk_rails_7f2323ad43"
+CREATE TABLE IF NOT EXISTS "notes" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "title" varchar, "body" text, "pinned" boolean DEFAULT FALSE NOT NULL, "archived" boolean DEFAULT FALSE NOT NULL, "trashed" boolean DEFAULT FALSE NOT NULL, "trashed_at" datetime(6), "max_size" integer DEFAULT 32768 NOT NULL, "user_id" integer NOT NULL, "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL, "checklist" boolean DEFAULT FALSE NOT NULL, CONSTRAINT "fk_rails_7f2323ad43"
 FOREIGN KEY ("user_id")
   REFERENCES "users" ("id")
 );
@@ -80,6 +80,7 @@ CREATE UNIQUE INDEX "index_users_on_email" ON "users" ("email") /*application='W
 CREATE UNIQUE INDEX "index_users_on_uid" ON "users" ("uid") /*application='Web'*/;
 CREATE UNIQUE INDEX "index_users_on_api_token" ON "users" ("api_token") /*application='Web'*/;
 INSERT INTO "schema_migrations" (version) VALUES
+('20260314191259'),
 ('20260224000000'),
 ('20260208174535'),
 ('20260208171402'),

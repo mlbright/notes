@@ -25,6 +25,8 @@ Rails.application.routes.draw do
       patch :archive
       patch :unarchive
       patch :toggle_pin
+      patch :toggle_checklist
+      patch :toggle_checklist_item
       post :duplicate
       post :merge
       get :export
@@ -65,6 +67,8 @@ Rails.application.routes.draw do
           patch :archive
           patch :unarchive
           patch :toggle_pin
+          patch :toggle_checklist
+          patch :toggle_checklist_item
           post :duplicate
           post :merge
           get :export
