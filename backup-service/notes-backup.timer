@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Notes S3 backup every 6 hours
+Requires=notes-backup.service
+
+[Timer]
+OnCalendar=*-*-* 00/6:00:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target
