@@ -1,0 +1,30 @@
+[Unit]
+Description=Back up Notes SQLite databases to S3
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/notes/deploy/backup-s3.sh
+
+# --- Application paths ---
+Environment=APP_ROOT=/opt/notes/web
+
+# --- AWS / S3 settings ---
+# Prefer an EnvironmentFile for secrets rather than inlining them here.
+# Create /etc/notes-backup.env with:
+#   S3_BUCKET=my-bucket
+#   S3_PREFIX=notes
+#   AWS_ACCESS_KEY_ID=...
+#   AWS_SECRET_ACCESS_KEY=...
+#   AWS_DEFAULT_REGION=us-east-1
+EnvironmentFile=/etc/notes-backup.env
+
+# --- Hardening ---
+ProtectSystem=full
+PrivateTmp=true
+NoNewPrivileges=true
+ReadOnlyPaths=/opt/notes
+
+[Install]
+WantedBy=multi-user.target
