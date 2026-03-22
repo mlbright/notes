@@ -64,7 +64,7 @@ for db in "${DATABASES[@]}"; do
   src="${APP_ROOT}/storage/${db}"
   if [[ -f "${src}" ]]; then
     dest="${WORK_DIR}/${db}"
-    sqlite3 "${src}" ".backup '${dest}'"
+    sqlite3 "${src}" ".backup ${dest}"
     aws s3 cp "${dest}" "s3://${S3_BUCKET}/${S3_PREFIX}/db/${TIMESTAMP}/${db}" --quiet
     echo "  Uploaded ${db}"
   else
