@@ -41,9 +41,6 @@ Each database is safely copied with `sqlite3 .backup` before upload so the runni
 2. **Copy the files into place**:
 
    ```bash
-   sudo cp backup-service/backup-s3.sh /opt/notes/deploy/backup-s3.sh
-   sudo chmod +x /opt/notes/deploy/backup-s3.sh
-
    sudo cp backup-service/notes-backup.service /etc/systemd/system/
    sudo cp backup-service/notes-backup.timer   /etc/systemd/system/
    ```
