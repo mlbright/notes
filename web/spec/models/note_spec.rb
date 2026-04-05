@@ -79,6 +79,20 @@ RSpec.describe Note, type: :model do
       note.toggle_pin!
       expect(note.pinned?).to be false
     end
+
+    it "does not pin an archived note" do
+      note = create(:note, :archived)
+      note.toggle_pin!
+      expect(note.pinned?).to be false
+    end
+  end
+
+  describe "validation" do
+    it "prevents archived notes from being pinned" do
+      note = build(:note, archived: true, pinned: true)
+      expect(note).not_to be_valid
+      expect(note.errors[:pinned]).to include("cannot be true for archived notes")
+    end
   end
 
   describe "#toggle_checklist!" do

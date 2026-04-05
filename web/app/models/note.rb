@@ -10,6 +10,7 @@ class Note < ApplicationRecord
 
   validates :body, length: { maximum: ->(note) { note.max_size || 32_768 } }
   validates :max_size, numericality: { greater_than: 0 }
+  validate :archived_notes_cannot_be_pinned
 
   scope :active, -> { where(trashed: false, archived: false) }
   scope :pinned, -> { where(pinned: true) }
@@ -37,6 +38,8 @@ class Note < ApplicationRecord
   end
 
   def toggle_pin!
+    return if archived? && !pinned?
+
     update!(pinned: !pinned)
   end
 
@@ -107,6 +110,10 @@ class Note < ApplicationRecord
   end
 
   private
+
+  def archived_notes_cannot_be_pinned
+    errors.add(:pinned, "cannot be true for archived notes") if archived? && pinned?
+  end
 
   def create_version
     next_version = note_versions.maximum(:version_number).to_i + 1
