@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "notes": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp/dist/index.js"],
+      "env": {
+        "NOTES_API_URL": "http://localhost:3000",
+        "NOTES_EMAIL": "",
+        "NOTES_PASSWORD": ""
+      }
+    }
+  }
+}
