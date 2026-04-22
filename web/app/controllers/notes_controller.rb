@@ -7,7 +7,7 @@ class NotesController < ApplicationController
     notes = current_user.accessible_notes
 
     notes = apply_filters(notes)
-    notes = notes.ordered
+    notes = notes.order(updated_at: :desc)
 
     @pagy, @notes = pagy(notes)
   end
