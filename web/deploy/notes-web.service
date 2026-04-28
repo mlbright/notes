@@ -16,8 +16,14 @@ RestartSec=5
 SyslogIdentifier=notes-web
 
 # Environment
+# PATH must include the mise-managed Ruby bin dir so bin/thrust and bin/rails
+# can locate the correct interpreter. Update this if the Ruby version changes
+# or if you switch to a different installation method.
+Environment=PATH=/home/ubuntu/.local/share/mise/installs/ruby/4.0.1/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=RAILS_ENV=production
-Environment=PORT=3000
+Environment=PORT=3001
+Environment=HTTP_PORT=3002
+Environment=TARGET_PORT=3001
 Environment=SOLID_QUEUE_IN_PUMA=true
 Environment=RAILS_LOG_LEVEL=info
 Environment=PIDFILE=/opt/notes/web/tmp/pids/server.pid

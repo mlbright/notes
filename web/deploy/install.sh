@@ -6,9 +6,10 @@
 #   sudo bash deploy/install.sh
 #
 # Prerequisites:
-#   - Ubuntu 22.04+ or Debian 12+
+#   - Ubuntu 24.04+
 #   - Root or sudo access
 #   - Git, curl installed
+#   - mise installed for the 'ubuntu' user with Ruby provisioned (see web/mise.toml)
 #
 set -euo pipefail
 
@@ -17,9 +18,8 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 APP_USER="notes"
 APP_DIR="/opt/notes/web"
-RUBY_VERSION="4.0.1"
+MISE_USER="ubuntu"
 DOMAIN="notes.example.com"              # your real domain
-# Caddy handles TLS automatically via Let's Encrypt / ZeroSSL
 SOURCE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ---------------------------------------------------------------------------
@@ -41,18 +41,7 @@ green "==> Installing system dependencies..."
 apt-get update -qq
 apt-get install -y -qq \
   build-essential git curl libssl-dev libreadline-dev zlib1g-dev \
-  libsqlite3-dev libyaml-dev libffi-dev debian-keyring debian-archive-keyring apt-transport-https
-
-# ---------------------------------------------------------------------------
-# Install Caddy
-# ---------------------------------------------------------------------------
-if ! command -v caddy &>/dev/null; then
-  green "==> Installing Caddy..."
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-  apt-get update -qq
-  apt-get install -y -qq caddy
-fi
+  libsqlite3-dev libyaml-dev libffi-dev rsync
 
 # ---------------------------------------------------------------------------
 # Create application user
@@ -63,24 +52,21 @@ if ! id "$APP_USER" &>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# Install Ruby via ruby-install + chruby (if not already present)
+# Locate Ruby installed by mise for the ubuntu user
 # ---------------------------------------------------------------------------
-if ! command -v ruby &>/dev/null || [[ "$(ruby -e 'puts RUBY_VERSION')" != "$RUBY_VERSION" ]]; then
-  green "==> Installing ruby-install..."
-  if ! command -v ruby-install &>/dev/null; then
-    RUBY_INSTALL_VERSION="0.9.4"
-    cd /tmp
-    curl -fsSL "https://github.com/postmodern/ruby-install/releases/download/v${RUBY_INSTALL_VERSION}/ruby-install-${RUBY_INSTALL_VERSION}.tar.gz" \
-      | tar -xz
-    cd "ruby-install-${RUBY_INSTALL_VERSION}"
-    make install
-    cd /tmp && rm -rf "ruby-install-${RUBY_INSTALL_VERSION}"
-  fi
-
-  green "==> Installing Ruby ${RUBY_VERSION} (this takes a few minutes)..."
-  ruby-install --system ruby "$RUBY_VERSION" -- --disable-install-doc
+if ! id "$MISE_USER" &>/dev/null; then
+  red "Expected user '$MISE_USER' to exist with mise installed."
+  exit 1
 fi
 
+green "==> Locating Ruby via mise (user: $MISE_USER)..."
+RUBY_DIR="$(sudo -iu "$MISE_USER" -- mise where ruby 2>/dev/null || true)"
+if [[ -z "$RUBY_DIR" || ! -x "$RUBY_DIR/bin/ruby" ]]; then
+  red "Could not locate a mise-managed Ruby for user '$MISE_USER'."
+  red "Install it first, e.g.: sudo -iu $MISE_USER mise install ruby"
+  exit 1
+fi
+export PATH="$RUBY_DIR/bin:$PATH"
 ruby -v
 
 # ---------------------------------------------------------------------------
@@ -104,7 +90,7 @@ chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
 # ---------------------------------------------------------------------------
 green "==> Installing Ruby gems..."
 cd "$APP_DIR"
-su -s /bin/bash "$APP_USER" -c "cd $APP_DIR && bundle config set --local deployment true && bundle config set --local without 'development test' && bundle install --jobs 4 --quiet"
+su -s /bin/bash "$APP_USER" -c "export PATH=$RUBY_DIR/bin:\$PATH && cd $APP_DIR && bundle config set --local deployment true && bundle config set --local without 'development test' && bundle install --jobs 4 --quiet"
 
 # ---------------------------------------------------------------------------
 # Rails credentials
@@ -121,10 +107,10 @@ fi
 # Prepare database and assets
 # ---------------------------------------------------------------------------
 green "==> Preparing database..."
-su -s /bin/bash "$APP_USER" -c "cd $APP_DIR && RAILS_ENV=production bin/rails db:prepare"
+su -s /bin/bash "$APP_USER" -c "export PATH=$RUBY_DIR/bin:\$PATH && cd $APP_DIR && RAILS_ENV=production bin/rails db:prepare"
 
 green "==> Precompiling assets..."
-su -s /bin/bash "$APP_USER" -c "cd $APP_DIR && RAILS_ENV=production bin/rails assets:precompile"
+su -s /bin/bash "$APP_USER" -c "export PATH=$RUBY_DIR/bin:\$PATH && cd $APP_DIR && RAILS_ENV=production bin/rails assets:precompile"
 
 # ---------------------------------------------------------------------------
 # Ensure writable directories
@@ -158,18 +144,15 @@ fi
 systemctl daemon-reload
 systemctl enable notes-web.service
 
-# ---------------------------------------------------------------------------
-# Install Caddy config
-# ---------------------------------------------------------------------------
-green "==> Configuring Caddy..."
-mkdir -p /var/log/caddy
-sed "s/notes\.example\.com/${DOMAIN}/g" "$APP_DIR/deploy/Caddyfile" > /etc/caddy/Caddyfile
-
-# Caddy automatically obtains and renews TLS certificates via Let's Encrypt.
-# Ensure the DOMAIN variable points to this server and ports 80/443 are open.
-caddy validate --config /etc/caddy/Caddyfile
-systemctl enable caddy
-systemctl reload caddy
+# Drop-in to point the service at the mise-managed Ruby detected above.
+# Rewritten on every install so it stays in sync with the active Ruby.
+green "==> Writing Ruby PATH override for systemd..."
+cat > "$OVERRIDE_DIR/ruby-path.conf" <<EOF
+[Service]
+Environment=PATH=$RUBY_DIR/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EOF
+chmod 644 "$OVERRIDE_DIR/ruby-path.conf"
+systemctl daemon-reload
 
 # ---------------------------------------------------------------------------
 # Start the app
