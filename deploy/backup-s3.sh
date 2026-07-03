@@ -2,10 +2,11 @@
 #
 # Back up the Notes Rails app SQLite databases and Active Storage files to S3.
 #
-# Required environment variables (set in the systemd service or an EnvironmentFile):
+# Required environment variables (the systemd unit sets APP_ROOT; the rest
+# come from deploy/backup.env via EnvironmentFile):
 #   S3_BUCKET        – target S3 bucket name
 #   S3_PREFIX        – key prefix inside the bucket  (default: "notes")
-#   APP_ROOT         – path to the Rails app root    (default: "/opt/notes/web")
+#   APP_ROOT         – path to the Rails app root (the repo's web/ directory)
 #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION
 #                    – standard AWS CLI credentials
 #
@@ -19,7 +20,7 @@
 set -euo pipefail
 
 : "${S3_BUCKET:?S3_BUCKET must be set}"
-: "${APP_ROOT:=/opt/notes/web}"
+: "${APP_ROOT:?APP_ROOT must be set}"
 : "${S3_PREFIX:=notes}"
 : "${NTFY_URL:=https://ntfy.sh}"
 

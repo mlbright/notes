@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pull web/storage/ (SQLite databases + Active Storage blobs) from the old
+# production host into this checkout, as part of the cold-cutover migration
+# described in deploy/DEPLOYMENT.md.
+#
+# Safety: refuses to run while notes-web is active on either machine (a cold
+# copy is only consistent after a clean stop), refuses to overwrite existing
+# local production databases without --force, and never deletes local files
+# (the dev/test databases in this dual-use checkout are left alone).
+#
+# The remote side runs rsync under sudo by default because the storage files
+# are owned by the old deployment's 'notes' user. This requires passwordless
+# sudo for the ssh user on the remote host.
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/pull-production-storage [options] [host]
+
+  host        ssh host of the old production machine (default: rattlesnake);
+              resolved via your ~/.ssh/config
+
+Options:
+  --force     overwrite existing local production databases
+  --dry-run   show what rsync would transfer (safety checks still run)
+  --no-sudo   read remote files without 'sudo rsync'
+  -h, --help  show this help
+
+Remote storage directory is fixed at /opt/notes/web/storage (the old layout).
+EOF
+}
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+info()  { printf "${GREEN}[INFO]${NC}  %s\n" "$1"; }
+warn()  { printf "${YELLOW}[WARN]${NC}  %s\n" "$1"; }
+error() { printf "${RED}[FAIL]${NC}  %s\n" "$1"; }
+die()   { error "$1"; exit 1; }
+
+HOST="rattlesnake"
+REMOTE_DIR="/opt/notes/web/storage"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOCAL_DIR="$ROOT_DIR/web/storage"
+
+FORCE=false
+DRY_RUN=false
+REMOTE_SUDO=true
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)   FORCE=true ;;
+    --dry-run) DRY_RUN=true ;;
+    --no-sudo) REMOTE_SUDO=false ;;
+    -h|--help) usage; exit 0 ;;
+    -*)        usage >&2; die "Unknown option: $1" ;;
+    *)         HOST="$1" ;;
+  esac
+  shift
+done
+
+remote() {
+  if $REMOTE_SUDO; then
+    ssh "$HOST" sudo -n "$@"
+  else
+    ssh "$HOST" "$@"
+  fi
+}
+
+# ── Preflight: local service must be stopped ───────────────────────
+if systemctl is-active --quiet notes-web 2>/dev/null; then
+  die "notes-web is running on THIS machine — syncing under it would corrupt the databases.
+        Stop it first:  sudo systemctl stop notes-web"
+fi
+info "Local notes-web is not running"
+
+# ── Preflight: remote reachable, sudo usable ───────────────────────
+ssh -o BatchMode=yes "$HOST" true 2>/dev/null \
+  || die "Cannot ssh to '$HOST' non-interactively (check ~/.ssh/config and keys)"
+
+if $REMOTE_SUDO && ! ssh "$HOST" sudo -n true 2>/dev/null; then
+  die "'sudo' on $HOST prompts for a password, which cannot work through rsync.
+        Grant passwordless sudo there, or ensure the files are readable and re-run with --no-sudo."
+fi
+
+# ── Preflight: remote service must be stopped, cleanly ─────────────
+if ssh "$HOST" systemctl is-active --quiet notes-web 2>/dev/null; then
+  die "notes-web is still running on $HOST — a live copy would be inconsistent.
+        Stop it deliberately first:  ssh $HOST sudo systemctl stop notes-web"
+fi
+info "Remote notes-web is not running"
+
+remote test -d "$REMOTE_DIR" \
+  || die "Remote directory $REMOTE_DIR not found or not readable on $HOST"
+
+# A non-empty WAL after shutdown means the service did not stop cleanly and
+# the .sqlite3 files alone are NOT a consistent snapshot.
+if remote test -s "$REMOTE_DIR/production.sqlite3-wal" 2>/dev/null; then
+  die "Non-empty production.sqlite3-wal on $HOST — the service did not shut down cleanly.
+        Start and cleanly stop notes-web there, then re-run."
+fi
+info "No leftover WAL on $HOST — snapshot is consistent"
+
+# ── Preflight: don't clobber local production data without --force ─
+existing=()
+for db in "$LOCAL_DIR"/production*.sqlite3; do
+  [[ -e "$db" ]] && existing+=("$db")
+done
+if [[ ${#existing[@]} -gt 0 ]] && ! $FORCE; then
+  for db in "${existing[@]}"; do warn "exists: $db"; done
+  die "Local production database(s) already exist — re-run with --force to overwrite."
+fi
+
+# ── Sync ────────────────────────────────────────────────────────────
+RSYNC_ARGS=(-av)
+$DRY_RUN && RSYNC_ARGS+=(--dry-run)
+$REMOTE_SUDO && RSYNC_ARGS+=(--rsync-path='sudo rsync')
+RSYNC_ARGS+=(
+  # Sidecars are empty leftovers after a clean stop; never copy them.
+  --exclude='*.sqlite3-wal'
+  --exclude='*.sqlite3-shm'
+  # Never touch this dual-use checkout's dev/test databases.
+  --exclude='development.sqlite3'
+  --exclude='test.sqlite3'
+)
+
+info "Syncing $HOST:$REMOTE_DIR/ -> $LOCAL_DIR/ (additive, no deletions)"
+rsync "${RSYNC_ARGS[@]}" "$HOST:$REMOTE_DIR/" "$LOCAL_DIR/"
+
+if $DRY_RUN; then
+  info "Dry run complete — nothing was written."
+else
+  info "Storage sync complete."
+  info "Next (see deploy/DEPLOYMENT.md 'Migrating production'): secrets, then 'make update'."
+fi

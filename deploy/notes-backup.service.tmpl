@@ -1,0 +1,26 @@
+# Template for /etc/systemd/system/notes-backup.service.
+#
+# Installed by `make install` with @PLACEHOLDER@ values substituted.
+# Never edit the installed unit by hand — change this template and re-run
+# `make install-backup`.
+
+[Unit]
+Description=Back up Notes SQLite databases to S3
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@SERVICE_USER@
+Group=@SERVICE_USER@
+ExecStart=@APP_DIR@/deploy/backup-s3.sh
+Environment=APP_ROOT=@WEB_DIR@
+
+# S3 bucket, AWS credentials, and optional ntfy settings live in the repo
+# (gitignored) so they migrate with the directory. See backup.env.example.
+EnvironmentFile=@APP_DIR@/deploy/backup.env
+
+# Hardening
+ProtectSystem=strict
+PrivateTmp=true
+NoNewPrivileges=true
