@@ -2,3 +2,62 @@
 @plugin "@tailwindcss/typography";
 @source "../../views";
 @source "../../javascript";
+
+/* Pagy pagination nav (rendered by @pagy.series_nav) */
+@layer components {
+  .pagy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    font-size: 0.9375rem;
+    color: var(--color-gray-700);
+  }
+
+  .pagy a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 0.75rem;
+    border-radius: 9999px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 150ms, color 150ms;
+  }
+
+  .pagy a[href]:hover {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-900);
+  }
+
+  .pagy a[href]:focus-visible {
+    outline: 2px solid var(--color-amber-400);
+    outline-offset: 2px;
+  }
+
+  /* Current page */
+  .pagy a[aria-current="page"] {
+    background-color: var(--color-amber-500);
+    color: white;
+    font-weight: 600;
+    cursor: default;
+  }
+
+  /* Disabled previous/next */
+  .pagy a[role="link"]:not([aria-current]) {
+    color: var(--color-gray-300);
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* Gap (…) */
+  .pagy a[role="separator"] {
+    min-width: 1.5rem;
+    padding: 0;
+    color: var(--color-gray-400);
+    cursor: default;
+  }
+}
