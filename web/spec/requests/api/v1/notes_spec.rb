@@ -201,6 +201,18 @@ RSpec.describe "Api::V1::Notes", type: :request do
       expect(json["notes"].size).to eq(1)
     end
 
+    it "returns results in reverse chronological order" do
+      older = create(:note, user: user, title: "Ruby basics", created_at: 2.days.ago)
+      newer = create(:note, user: user, title: "Ruby advanced", created_at: 1.hour.ago)
+      middle = create(:note, user: user, title: "Ruby tips", created_at: 1.day.ago)
+
+      get "/api/v1/notes/search", params: { q: "Ruby" }, headers: headers
+      expect(response).to have_http_status(:ok)
+
+      json = JSON.parse(response.body)
+      expect(json["notes"].map { |n| n["id"] }).to eq([ newer.id, middle.id, older.id ])
+    end
+
     it "returns error without query" do
       get "/api/v1/notes/search", headers: headers
       expect(response).to have_http_status(:bad_request)
