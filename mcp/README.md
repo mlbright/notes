@@ -110,12 +110,51 @@ A `.vscode/mcp.json` file is already included in this repository. To get started
 
 ### Claude Code
 
+Claude Code launches the server itself at the start of each session (stdio transport), so there is no daemon to run. Registering it at user scope makes it available in every project and persists across reboots, since the config lives in `~/.claude.json`.
+
+Quick setup (password stored in plaintext in `~/.claude.json`):
+
 ```bash
-claude mcp add notes -- node /absolute/path/to/mcp/dist/index.js \
-  --env NOTES_API_URL=https://notes.example.com \
-  --env NOTES_EMAIL=user@example.com \
-  --env NOTES_PASSWORD=your-password
+claude mcp add notes --scope user \
+  -e NOTES_API_URL=https://notes.example.com \
+  -e NOTES_EMAIL=user@example.com \
+  -e NOTES_PASSWORD=your-password \
+  -- node /absolute/path/to/mcp/dist/index.js
 ```
+
+#### macOS: credentials in the Keychain
+
+To keep the password out of `~/.claude.json`, register a small wrapper script that reads the credentials from the Keychain at launch.
+
+1. **Store the credentials** — the Keychain item's account is your Notes email; `-w` with no value prompts for the password:
+   ```bash
+   security add-generic-password -s notes-mcp -a user@example.com -w
+   ```
+   Re-run with `-U` to update it after a password change.
+
+2. **Create the wrapper** at `~/.local/bin/notes-mcp` and `chmod +x` it. Use absolute paths — Claude Code may not start the server with your interactive shell's `PATH` (e.g. mise/nvm shims):
+   ```sh
+   #!/bin/sh
+   # Launches the Notes MCP server (stdio) with credentials from the macOS Keychain.
+   set -e
+   SERVICE=notes-mcp
+   NOTES_EMAIL=$(security find-generic-password -s "$SERVICE" 2>/dev/null | sed -n 's/.*"acct"<blob>="\(.*\)"/\1/p')
+   NOTES_PASSWORD=$(security find-generic-password -s "$SERVICE" -w 2>/dev/null)
+   if [ -z "$NOTES_EMAIL" ] || [ -z "$NOTES_PASSWORD" ]; then
+     echo "notes-mcp: no Keychain item for service '$SERVICE'" >&2
+     exit 1
+   fi
+   export NOTES_EMAIL NOTES_PASSWORD
+   export NOTES_API_URL="${NOTES_API_URL:-https://notes.example.com}"
+   exec /absolute/path/to/node /absolute/path/to/mcp/dist/index.js
+   ```
+
+3. **Register it:**
+   ```bash
+   claude mcp add notes --scope user -- ~/.local/bin/notes-mcp
+   ```
+
+4. **Verify** with `claude mcp get notes`. Note that "Connected" only means the process started — credentials aren't checked until the first tool call (see below), so try a tool like `list_tags` in a new session. An `Invalid credentials` error usually means the account has no password set (e.g. it signs in via Google OAuth only).
 
 ## Authentication Flow
 
