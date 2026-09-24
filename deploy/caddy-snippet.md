@@ -1,21 +1,21 @@
 # Caddy configuration (runs on a separate machine)
 
 Caddy is **not** installed on the app machine. It runs on a separate host and
-reverse-proxies to this machine's Thruster listener (port 3002) over
-Tailscale. TLS terminates at Caddy; the app trusts `X-Forwarded-Proto`
-(`config.assume_ssl` / `config.force_ssl` are enabled in production).
+reverse-proxies to this machine's Thruster listener (port 3002) over Tailscale.
+TLS terminates at Caddy; the app trusts `X-Forwarded-Proto` (`config.assume_ssl`
+/ `config.force_ssl` are enabled in production).
 
-Add to the Caddy machine's `/etc/caddy/Caddyfile`, replacing the domain and
-the app machine's Tailscale hostname:
+Add to the Caddy machine's `/etc/caddy/Caddyfile`, replacing the domain and the
+app machine's Tailscale hostname:
 
 ```caddyfile
 notes.example.com {
-	reverse_proxy app-machine.tailnet-name.ts.net:3002
+    reverse_proxy app-machine.tailnet-name.ts.net:3002
 
-	# Match the app's attachment size limit
-	request_body {
-		max_size 25MB
-	}
+    # Match the app's attachment size limit
+    request_body {
+        max_size 25MB
+    }
 }
 ```
 

@@ -1,21 +1,28 @@
 # Notes
 
-A self-hosted note-taking application inspired by Google Keep. Built with Ruby on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
+A self-hosted note-taking application inspired by Google Keep. Built with Ruby
+on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
 
 ## Features
 
-- **Rich editing** — Toggle between WYSIWYG (Tiptap/ProseMirror) and raw Markdown; content stored as Markdown
+- **Rich editing** — Toggle between WYSIWYG (Tiptap/ProseMirror) and raw
+  Markdown; content stored as Markdown
 - **Organization** — Pin, archive, and tag notes with colored labels
 - **Full-text search** — SQLite FTS5-powered search across titles and bodies
-- **Version history** — Automatic snapshots on every save; view diffs and restore previous versions
+- **Version history** — Automatic snapshots on every save; view diffs and
+  restore previous versions
 - **Sharing** — Share notes read-write with other users; revocable by the owner
-- **Attachments** — Upload files, images, and videos (stored locally via Active Storage, 25 MB default limit)
+- **Attachments** — Upload files, images, and videos (stored locally via Active
+  Storage, 25 MB default limit)
 - **Soft delete** — Trashed notes are permanently deleted after 30 days
 - **Export** — Download individual notes or bulk-export as Markdown files
-- **REST API** — Complete JSON API at `/api/v1/` with token-based auth, pagination, rate limiting, and OpenAPI docs at `/api/docs`
-- **Authentication** — Google OAuth2 for web sessions; email/password with token-based auth for API and mobile clients
+- **REST API** — Complete JSON API at `/api/v1/` with token-based auth,
+  pagination, rate limiting, and OpenAPI docs at `/api/docs`
+- **Authentication** — Google OAuth2 for web sessions; email/password with
+  token-based auth for API and mobile clients
 - **Admin panel** — User management and platform settings for administrators
-- **Responsive design** — Card-based layout that works well on desktop and in Turbo Native mobile shells
+- **Responsive design** — Card-based layout that works well on desktop and in
+  Turbo Native mobile shells
 
 ## Prerequisites
 
@@ -33,7 +40,7 @@ sudo apt-get install sqlite3 libsqlite3-dev libvips
 
 ## Project Structure
 
-```
+```text
 notes/
 ├── AGENTS.md           # Architecture and design specification
 ├── CONTEXT.md          # Glossary of domain terms
@@ -63,7 +70,8 @@ cd web
 bin/setup
 ```
 
-This installs gem dependencies, creates the SQLite database, and runs migrations. A default admin user is seeded (`mlbright@gmail.com` / `admin`).
+This installs gem dependencies, creates the SQLite database, and runs
+migrations. A default admin user is seeded (`mlbright@gmail.com` / `admin`).
 
 ### Development Server
 
@@ -72,7 +80,8 @@ cd web
 bin/dev
 ```
 
-This starts the Rails server and Tailwind CSS watcher via Foreman. The app is available at **http://localhost:3000**.
+This starts the Rails server and Tailwind CSS watcher via Foreman. The app is
+available at **<http://localhost:3000>**.
 
 Alternatively, start the Rails server alone:
 
@@ -83,14 +92,14 @@ bin/rails server
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | HTTP port for the development server |
-| `RAILS_ENV` | `development` | Rails environment (`development`, `test`, `production`) |
-| `RAILS_MASTER_KEY` | — | Decrypts `config/credentials.yml.enc` (required in production) |
-| `WEB_CONCURRENCY` | `1` | Number of Puma worker processes |
-| `RAILS_MAX_THREADS` | `5` | Threads per Puma worker / max DB connections |
-| `SOLID_QUEUE_IN_PUMA` | `true` | Run Solid Queue background jobs inside the Puma process |
+| Variable              | Default       | Description                                                    |
+| --------------------- | ------------- | -------------------------------------------------------------- |
+| `PORT`                | `3000`        | HTTP port for the development server                           |
+| `RAILS_ENV`           | `development` | Rails environment (`development`, `test`, `production`)        |
+| `RAILS_MASTER_KEY`    | —             | Decrypts `config/credentials.yml.enc` (required in production) |
+| `WEB_CONCURRENCY`     | `1`           | Number of Puma worker processes                                |
+| `RAILS_MAX_THREADS`   | `5`           | Threads per Puma worker / max DB connections                   |
+| `SOLID_QUEUE_IN_PUMA` | `true`        | Run Solid Queue background jobs inside the Puma process        |
 
 ## Testing
 
@@ -144,10 +153,12 @@ docker run -d \
 ```
 
 The Dockerfile uses a multi-stage build:
+
 - **Build stage** — Installs gems, precompiles bootsnap and assets
 - **Runtime stage** — Minimal image with the compiled app, runs as non-root user
 - **Entrypoint** — Automatically runs pending migrations on startup
-- **Server** — Puma behind Thruster (HTTP compression + asset caching), exposed on port 80
+- **Server** — Puma behind Thruster (HTTP compression + asset caching), exposed
+  on port 80
 
 ### Asset Precompilation
 
@@ -163,9 +174,9 @@ RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 bin/rails assets:precompile
 Production runs **directly from the git checkout** — there is no separate
 deployed copy. All production state (SQLite databases, Active Storage blobs,
 secrets) lives inside the repo directory; the only artifacts outside it are
-systemd units generated by `make install` from templates in `deploy/`.
-TLS is handled by Caddy on a **separate machine**, reverse-proxying to this
-one over Tailscale.
+systemd units generated by `make install` from templates in `deploy/`. TLS is
+handled by Caddy on a **separate machine**, reverse-proxying to this one over
+Tailscale.
 
 ```bash
 # One-time (and after Ruby upgrades): apt deps + systemd units
@@ -180,9 +191,9 @@ make logs
 ```
 
 See [deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md) for the full runbook —
-first-time setup, secrets reference, backups (S3 timer), the Caddy snippet
-for the proxy machine, and the cold-cutover procedure for migrating
-production from another machine.
+first-time setup, secrets reference, backups (S3 timer), the Caddy snippet for
+the proxy machine, and the cold-cutover procedure for migrating production from
+another machine.
 
 ## API
 
@@ -203,11 +214,14 @@ curl http://localhost:3000/api/v1/notes \
 
 ### Rate Limiting
 
-API requests are rate-limited to **3000 requests per 5 minutes** per IP address and per API token. Exceeding the limit returns HTTP 429 with a `Retry-After` header.
+API requests are rate-limited to **3000 requests per 5 minutes** per IP address
+and per API token. Exceeding the limit returns HTTP 429 with a `Retry-After`
+header.
 
 ## Import Tool
 
-The Memos import CLI was removed; it is available in git history at `d86b86c` (`import-memos/`).
+The Memos import CLI was removed; it is available in git history at `d86b86c`
+(`import-memos/`).
 
 ## License
 

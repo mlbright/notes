@@ -1,0 +1,15 @@
+// markdownlint config (https://github.com/DavidAnson/markdownlint-cli2).
+// Run: markdownlint-cli2
+{
+  "config": {
+    "default": true,
+    // Wrap prose at 80 columns; tables and code can't be wrapped.
+    "MD013": { "tables": false, "code_blocks": false }
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "**/node_modules/**",
+    // Third-party agent skills, kept as upstream wrote them.
+    ".github/skills/**"
+  ]
+}
