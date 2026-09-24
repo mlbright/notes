@@ -23,8 +23,7 @@ A self-hosted note-taking application inspired by Google Keep. Built with Ruby o
 - **Bundler** (ships with Ruby)
 - **SQLite** 3.x with development headers
 - **libvips** (for image processing / Active Storage variants)
-- **Node.js** (not required — asset pipeline uses importmap)
-- **Go** 1.23+ (only for the optional `cmd/import-memos` tool)
+- **Node.js** (only for the optional `mcp/` server; the web app uses importmap)
 
 On Debian/Ubuntu:
 
@@ -37,17 +36,22 @@ sudo apt-get install sqlite3 libsqlite3-dev libvips
 ```
 notes/
 ├── AGENTS.md           # Architecture and design specification
+├── CONTEXT.md          # Glossary of domain terms
+├── Makefile            # Deployment targets (make install, make update)
 ├── README.md           # This file
-├── web/                # Rails application
-│   ├── app/            # Models, controllers, views, jobs, assets
-│   ├── config/         # Rails configuration, routes, deploy config
-│   ├── db/             # Migrations, schema, seeds
-│   ├── spec/           # RSpec test suite
-│   ├── Dockerfile      # Production container image
-│   ├── Gemfile         # Ruby dependencies
-│   └── Procfile.dev    # Foreman process definitions for development
-└── cmd/
-    └── import-memos/   # Go CLI tool to migrate data from Memos
+├── deploy/             # systemd unit templates, backup script, Caddy notes
+├── docs/
+│   └── adr/            # Architecture decision records
+├── mcp/                # MCP server exposing the Notes API (TypeScript)
+├── scripts/            # Operational helper scripts
+└── web/                # Rails application
+    ├── app/            # Models, controllers, views, jobs, assets
+    ├── config/         # Rails configuration, routes, deploy config
+    ├── db/             # Migrations, schema, seeds
+    ├── spec/           # RSpec test suite
+    ├── Dockerfile      # Production container image
+    ├── Gemfile         # Ruby dependencies
+    └── Procfile.dev    # Foreman process definitions for development
 ```
 
 ## Getting Started
@@ -203,47 +207,7 @@ API requests are rate-limited to **3000 requests per 5 minutes** per IP address 
 
 ## Import Tool
 
-A standalone Go CLI at `cmd/import-memos/` migrates data from a [Memos](https://github.com/usememos/memos) instance into Notes.
-
-### Build
-
-```bash
-cd cmd/import-memos
-go build -o import-memos .
-```
-
-### Usage
-
-```bash
-./import-memos \
-  --memos-url https://memos.example.com \
-  --memos-token "$(cat ~/.memo-token)" \
-  --notes-url http://localhost:3000 \
-  --delay 200
-```
-
-| Flag | Required | Description |
-|---|---|---|
-| `--memos-url` | Yes | Base URL of the Memos instance |
-| `--memos-token` | Yes | Personal Access Token for Memos |
-| `--notes-url` | Yes | Base URL of the Notes instance |
-| `--delay` | No | Milliseconds to wait between Notes API calls (default: 0) |
-| `--dry-run` | No | Preview what would be imported without writing |
-
-The tool interactively prompts for Notes user credentials to map Memos users to Notes accounts. It migrates:
-
-- Memo content (with H1 headings extracted as note titles)
-- Tags (created if they don't exist, default gray color)
-- Pinned / archived state
-- Attachments (files up to 25 MB)
-- Original created/updated timestamps
-
-### Limitations
-
-- Memo relations, reactions, and comments are not migrated
-- Visibility settings have no equivalent — all imported notes are private
-- Shares are not migrated
-- Tag colors default to gray (`#6b7280`)
+The Memos import CLI was removed; it is available in git history at `d86b86c` (`import-memos/`).
 
 ## License
 
