@@ -1,9 +1,9 @@
 [Unit]
-Description=Run Notes S3 backup every 6 hours
+Description=Sync the Notes checkout to S3 every hour
 Requires=notes-backup.service
 
 [Timer]
-OnCalendar=*-*-* 00/6:00:00
+OnCalendar=hourly
 RandomizedDelaySec=300
 Persistent=true
 

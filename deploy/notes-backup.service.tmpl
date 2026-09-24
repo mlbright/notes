@@ -1,11 +1,11 @@
 # Template for /etc/systemd/system/notes-backup.service.
 #
-# Installed by `make install` with @PLACEHOLDER@ values substituted.
-# Never edit the installed unit by hand — change this template and re-run
-# `make install-backup`.
+# Installed by deploy/install-backup.sh (via `make install`) with
+# @PLACEHOLDER@ values substituted. Never edit the installed unit by hand —
+# change this template and re-run `make install-backup`.
 
 [Unit]
-Description=Back up Notes SQLite databases to S3
+Description=Sync the Notes checkout to its S3 Backup Mirror
 Wants=network-online.target
 After=network-online.target
 
@@ -14,13 +14,19 @@ Type=oneshot
 User=@SERVICE_USER@
 Group=@SERVICE_USER@
 ExecStart=@APP_DIR@/deploy/backup-s3.sh
-Environment=APP_ROOT=@WEB_DIR@
+Environment=APP_DIR=@APP_DIR@
 
 # S3 bucket, AWS credentials, and optional ntfy settings live in the repo
 # (gitignored) so they migrate with the directory. See backup.env.example.
 EnvironmentFile=@APP_DIR@/deploy/backup.env
 
-# Hardening
+# Stay out of the web service's way.
+Nice=10
+IOSchedulingClass=idle
+
+# Hardening. The checkout is read-only except web/storage, where sqlite3
+# needs to touch the -shm file to read a database in WAL mode.
 ProtectSystem=strict
+ReadWritePaths=@WEB_DIR@/storage
 PrivateTmp=true
 NoNewPrivileges=true

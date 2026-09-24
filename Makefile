@@ -10,6 +10,7 @@
 #
 #   make install    one-time (and after Ruby upgrades): apt deps + systemd units
 #   make update     make the running service reflect the current working tree
+#   make backup     run a backup to S3 now
 #   make status     service + backup timer status
 #   make logs       follow the service journal
 #
@@ -30,7 +31,7 @@ RENDER = sed \
 	-e 's|@RUBY_DIR@|$(RUBY_DIR)|g' \
 	-e 's|@SERVICE_USER@|$(SERVICE_USER)|g'
 
-.PHONY: install install-deps install-web install-backup update restart status logs check-ruby
+.PHONY: install install-deps install-web install-backup backup update restart status logs check-ruby
 
 install: install-deps install-web install-backup
 
@@ -52,13 +53,13 @@ install-web: check-ruby
 	sudo systemctl enable notes-web.service
 	@echo "Installed notes-web.service (WorkingDirectory=$(WEB_DIR), User=$(SERVICE_USER))"
 
+# Provisions S3 + IAM and writes deploy/backup.env on first run (interactive);
+# once backup.env exists (e.g. after a restore) it only installs the units.
 install-backup:
-	@test -f deploy/backup.env || \
-		echo "WARNING: deploy/backup.env is missing — backups will fail until it exists (see deploy/backup.env.example)"
-	$(RENDER) deploy/notes-backup.service.tmpl | sudo tee $(SYSTEMD_DIR)/notes-backup.service >/dev/null
-	sudo install -m 644 deploy/notes-backup.timer $(SYSTEMD_DIR)/notes-backup.timer
-	sudo systemctl daemon-reload
-	sudo systemctl enable --now notes-backup.timer
+	deploy/install-backup.sh $(if $(wildcard deploy/backup.env),--no-provision)
+
+backup:
+	sudo systemctl start notes-backup.service
 
 # No git operations here by design: production runs whatever the working
 # tree contains, and git is the operator's business.

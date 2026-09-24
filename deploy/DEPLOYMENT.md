@@ -57,6 +57,9 @@ production, so the app generates https URLs and secure cookies based on
   `cd web && mise install`
 - Tailscale (or equivalent private network) connecting this machine and the
   Caddy machine
+- [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+  (not in Ubuntu's apt repositories) and, for the one-time backup provisioning,
+  admin credentials for your AWS account (e.g. `aws login`)
 
 ## First-time setup
 
@@ -70,10 +73,9 @@ cd web && mise install && cd ..
 # 2. Secrets — see "Secrets reference" below
 cp /path/to/master.key web/config/master.key && chmod 600 web/config/master.key
 $EDITOR web/.env
-cp deploy/backup.env.example deploy/backup.env && $EDITOR deploy/backup.env
-chmod 600 deploy/backup.env
 
-# 3. Install system packages + systemd units (uses sudo)
+# 3. Install system packages + systemd units (uses sudo). The first run
+#    prompts for the S3 bucket and provisions it; see "Backups" below.
 make install
 
 # 4. Gems, database, assets, start
@@ -110,21 +112,23 @@ Decrypts `web/config/credentials.yml.enc`. `chmod 600`.
 
 ### `deploy/backup.env`
 
-S3 bucket and AWS credentials for the backup timer; see
-[backup.env.example](./backup.env.example). `chmod 600`.
+S3 bucket, prefix, region, and the backup IAM user's access key. Written by
+`deploy/install-backup.sh`; see [backup.env.example](./backup.env.example) to
+write it by hand. `chmod 600`.
 
 ## Make targets
 
-| Target                | What it does                                                    |
-| --------------------- | --------------------------------------------------------------- |
-| `make install`        | `install-deps` + `install-web` + `install-backup` (idempotent)  |
-| `make install-deps`   | apt packages (build tools, sqlite3, libvips, awscli, …)         |
-| `make install-web`    | Renders + installs `notes-web.service`, enables it              |
-| `make install-backup` | Renders + installs backup service + timer, enables the timer    |
-| `make update`         | `bundle install` → `db:prepare` → `assets:precompile` → restart |
-| `make restart`        | Restart the service                                             |
-| `make status`         | Service status + backup timer schedule                          |
-| `make logs`           | Follow the journal                                              |
+| Target                | What it does                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `make install`        | `install-deps` + `install-web` + `install-backup` (idempotent)                          |
+| `make install-deps`   | apt packages (build tools, sqlite3, libvips, …)                                         |
+| `make install-web`    | Renders + installs `notes-web.service`, enables it                                      |
+| `make install-backup` | `deploy/install-backup.sh`: provisions S3 on first run, installs backup service + timer |
+| `make backup`         | Run a backup now                                                                        |
+| `make update`         | `bundle install` → `db:prepare` → `assets:precompile` → restart                         |
+| `make restart`        | Restart the service                                                                     |
+| `make status`         | Service status + backup timer schedule                                                  |
+| `make logs`           | Follow the journal                                                                      |
 
 `make install` bakes the repo path, your username, and the current mise Ruby
 path into the installed units. **Re-run `make install-web install-backup` after
@@ -145,19 +149,128 @@ runnable before `make update`, reboots, or anything that restarts the service.
 
 ## Backups
 
-A systemd timer (`notes-backup.timer`) uploads consistent `sqlite3 .backup`
-snapshots of all four databases plus the Active Storage blobs to S3 every 6
-hours (see `deploy/backup-s3.sh`).
+`notes-backup.timer` runs `deploy/backup-s3.sh` every hour. It keeps a **Backup
+Mirror** of the whole checkout in S3: code, `.git`, uncommitted edits, secrets,
+Active Storage blobs, and consistent `sqlite3 .backup` snapshots of the four
+production databases. It excludes the Ephemeral Files listed in
+[backup-exclude](./backup-exclude) (temp files, logs, compiled assets,
+`node_modules`, test databases, WAL sidecars). See
+[ADR 0002](../docs/adr/0002-backup-is-a-versioned-mirror-of-the-checkout.md).
 
-```bash
-# Run one manually / inspect
-sudo systemctl start notes-backup.service
-journalctl -u notes-backup.service -e
-systemctl list-timers notes-backup.timer
+```text
+s3://<bucket>/<prefix>/tree/          mirror of the repo root
+s3://<bucket>/<prefix>/manifest.tsv   file modes + symlinks (S3 can't store them)
 ```
 
-Frequency: edit `OnCalendar=` in `deploy/notes-backup.timer`, then
-`make install-backup`. Retention: use an S3 lifecycle policy.
+Runs are incremental (`aws s3 sync --delete`): only changed files upload, plus
+the database snapshots (~30 MB) every time. History comes from S3 bucket
+**versioning**: overwritten and deleted objects are kept as noncurrent versions
+for 30 days, then expired by a lifecycle rule. The backup IAM user can write and
+read versions but cannot delete them, so a compromised machine cannot erase the
+history.
+
+Nothing about the AWS account is in the repo: the bucket, prefix, region, and
+key live in the gitignored `deploy/backup.env`.
+
+### Installing
+
+```bash
+aws login                       # admin credentials, used once for provisioning
+deploy/install-backup.sh        # or: make install-backup
+```
+
+The script prompts for bucket, prefix (default `notes`), and region. Then it:
+
+1. Creates the bucket if missing, blocks public access, enables versioning, and
+   adds the lifecycle rule (`NONCURRENT_DAYS=60 deploy/install-backup.sh` to
+   change the window). It won't overwrite a bucket's other lifecycle rules; it
+   prints the rule for you to add instead.
+2. Creates (or reuses) the IAM user `notes-backup-<hostname>` with an inline
+   policy scoped to `<bucket>/<prefix>/*`
+   ([backup-iam-policy.json.tmpl](./backup-iam-policy.json.tmpl)), and an access
+   key for it. If the user already has a key, it asks before creating another.
+3. Writes `deploy/backup.env` (`chmod 600`).
+4. Verifies the key, installs and enables the systemd units, and runs a first
+   backup.
+
+Re-running it is safe. Use `--admin-profile NAME` to provision with a named AWS
+profile, and `--no-provision` to skip AWS entirely and only install the units
+from an existing `backup.env`. `make install-backup` passes `--no-provision`
+automatically once `backup.env` exists.
+
+### Operating
+
+```bash
+make backup                                  # run one now
+journalctl -u notes-backup.service -e        # logs
+systemctl list-timers notes-backup.timer     # schedule
+aws s3 ls s3://<bucket>/<prefix>/manifest.tsv   # its timestamp = last complete run
+```
+
+- **Notifications:** set `NTFY_TOPIC` in `backup.env` to get an ntfy push on
+  failure; add `NTFY_ON_SUCCESS=1` to also be told about successes.
+- **Frequency:** edit `OnCalendar=` in `deploy/notes-backup.timer`, then
+  `make install-backup`.
+- **What's excluded:** edit `deploy/backup-exclude`. Excluded paths are also
+  exempt from `--delete`, so objects already in S3 under a newly excluded path
+  stay there until you remove them.
+
+## Restore from S3
+
+Restoring is a copy of the directory plus the usual install. It works the same
+for disaster recovery and for moving to a new machine.
+
+1. On the target machine, meet the Prerequisites (mise, Ruby via `mise install`
+   once the tree is present, AWS CLI v2), and get credentials that can read the
+   bucket: `aws login`, or the backup key from a saved copy of `backup.env`.
+2. If the old machine is still up, stop it first (see step 1 of the cold cutover
+   below). Otherwise it keeps writing to the same mirror.
+3. Fetch the restore script from the mirror and run it:
+
+   ```bash
+   aws s3 cp s3://<bucket>/notes/tree/deploy/restore-s3.sh . && chmod +x restore-s3.sh
+   S3_BUCKET=<bucket> S3_PREFIX=notes ./restore-s3.sh ~/notes
+   ```
+
+   It downloads the latest mirror, removes stale WAL sidecars, and re-applies
+   the Metadata Manifest (executable bits, `600` secrets, symlinks). It refuses
+   while `notes-web` runs on this machine, and refuses to overwrite existing
+   production databases without `--force`. It never deletes local files.
+   `--env path/to/backup.env` loads the bucket and credentials from a file.
+
+4. Install and start:
+
+   ```bash
+   cd ~/notes && (cd web && mise install)
+   make install     # backup.env came back with the restore, so no provisioning
+   make update
+   curl -s http://localhost:3002/up
+   ```
+
+5. If the hostname changed, the timer now runs with the old machine's key, which
+   still works. Run `deploy/install-backup.sh` (with provisioning) to give this
+   machine its own key, then delete the old one in IAM.
+
+Alternatively, restore into a staging directory and `rsync -a` it into place.
+The restored directory is a normal git checkout, including any work that was
+uncommitted at backup time.
+
+### Recovering an older version of a file
+
+The script restores only the latest state. For point-in-time recovery of
+individual files (within the 30-day window):
+
+```bash
+aws s3api list-object-versions --bucket <bucket> \
+  --prefix notes/tree/web/storage/production.sqlite3 \
+  --query 'Versions[].[VersionId,LastModified]' --output text
+aws s3api get-object --bucket <bucket> \
+  --key notes/tree/web/storage/production.sqlite3 \
+  --version-id <VersionId> production.sqlite3.restored
+```
+
+A file deleted locally shows up as a delete marker. Its earlier versions are
+still listed and can be fetched the same way.
 
 ## Migrating production from another machine (cold cutover)
 
@@ -215,12 +328,10 @@ from the old machine.
    chmod 600 ~/notes/web/.env
    ```
 
-5. **Recreate the backup credentials** from the old `/etc/notes-backup.env`:
-
-   ```bash
-   ssh old-machine 'sudo cat /etc/notes-backup.env' > ~/notes/deploy/backup.env
-   chmod 600 ~/notes/deploy/backup.env
-   ```
+5. **Set up backups** with `deploy/install-backup.sh` (see "Backups"). If you
+   reuse the old machine's bucket, keep the default prefix layout: the mirror
+   lives under `<prefix>/tree/`, so the old timestamped snapshots under
+   `<prefix>/db/` and `<prefix>/storage/` are left alone.
 
 6. **Migrate and start** (this checkout's code may carry newer migrations than
    the old machine's data — `db:prepare` inside `make update` handles that):
@@ -252,14 +363,15 @@ tail -f web/log/production.log   # Rails application log
 
 ## Troubleshooting
 
-| Symptom                   | Check                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------- |
-| Service won't start       | `journalctl -u notes-web -e`                                                           |
-| 502 from Caddy            | Is Thruster up? `curl http://localhost:3002/up`; tailnet reachable from the Caddy box? |
-| Blocked host error        | `APP_HOST` in `web/.env` must equal the public domain                                  |
-| Redirect loop / http URLs | Caddy must forward `X-Forwarded-Proto` (default `reverse_proxy` does)                  |
-| Assets not loading        | `make update` (re-runs `assets:precompile`)                                            |
-| Master key errors         | `web/config/master.key` present and `chmod 600`?                                       |
-| Write errors (DB/uploads) | `ReadWritePaths` in the unit; re-run `make install-web` if the repo moved              |
-| Stale Ruby after upgrade  | Re-run `make install-web` (unit bakes in the mise Ruby path)                           |
-| Backup failures           | `journalctl -u notes-backup -e`; `deploy/backup.env` present and valid?                |
+| Symptom                         | Check                                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Service won't start             | `journalctl -u notes-web -e`                                                                                                                  |
+| 502 from Caddy                  | Is Thruster up? `curl http://localhost:3002/up`; tailnet reachable from the Caddy box?                                                        |
+| Blocked host error              | `APP_HOST` in `web/.env` must equal the public domain                                                                                         |
+| Redirect loop / http URLs       | Caddy must forward `X-Forwarded-Proto` (default `reverse_proxy` does)                                                                         |
+| Assets not loading              | `make update` (re-runs `assets:precompile`)                                                                                                   |
+| Master key errors               | `web/config/master.key` present and `chmod 600`?                                                                                              |
+| Write errors (DB/uploads)       | `ReadWritePaths` in the unit; re-run `make install-web` if the repo moved                                                                     |
+| Stale Ruby after upgrade        | Re-run `make install-web` (unit bakes in the mise Ruby path)                                                                                  |
+| Backup failures                 | `journalctl -u notes-backup -e`; `deploy/backup.env` present and valid? Re-run `deploy/install-backup.sh --no-provision` to re-verify the key |
+| Restored scripts not executable | The manifest wasn't applied; re-run `restore-s3.sh --force`                                                                                   |

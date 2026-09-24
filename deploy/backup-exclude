@@ -1,0 +1,35 @@
+# Ephemeral Files: excluded from the Backup Mirror (see CONTEXT.md).
+#
+# Read by backup-s3.sh. One pattern per line, relative to the repo root.
+#   - A pattern containing "/" matches a path from the repo root.
+#   - A pattern without "/" matches a file name anywhere.
+#   - "*" matches anything, including "/".
+#   - "!pattern" re-includes paths excluded by an earlier line.
+#
+# This is deliberately not .gitignore: gitignored does not mean ephemeral
+# (secrets and web/storage are gitignored and must be backed up).
+# Live production databases are never synced directly; backup-s3.sh uploads
+# Database Snapshots in their place.
+
+# Rails temp files, logs, and compiled assets (keep tracked .keep files).
+web/tmp/*
+!web/tmp/.keep
+!web/tmp/pids/.keep
+!web/tmp/storage/.keep
+web/log/*
+!web/log/.keep
+web/public/assets/*
+web/app/assets/builds/*
+!web/app/assets/builds/.keep
+
+# MCP server dependencies and build output (npm install && npm run build).
+mcp/node_modules/*
+mcp/dist/*
+
+# Non-production databases.
+web/storage/test.sqlite3*
+web/storage/development.sqlite3*
+
+# SQLite sidecars: meaningless without the live database they belong to.
+*.sqlite3-wal
+*.sqlite3-shm
