@@ -26,7 +26,8 @@ on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
 
 ## Prerequisites
 
-- **Ruby** 4.0.1 (see `web/.ruby-version`)
+- **Ruby** 4.0.7, pinned in `web/mise.toml`; with
+  [mise](https://mise.jdx.dev), `cd web && mise install` installs it
 - **Bundler** (ships with Ruby)
 - **SQLite** 3.x with development headers
 - **libvips** (for image processing / Active Storage variants)
