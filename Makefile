@@ -14,8 +14,8 @@
 APP_DIR      := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 WEB_DIR      := $(APP_DIR)/web
 SERVICE_USER := $(shell id -un)
-# Resolve from web/ so the app's pinned Ruby (web/mise.toml) wins over the
-# root mise.toml.
+# Resolve from web/ so the app's pinned Ruby (web/mise.toml) wins over
+# whatever mise picks elsewhere, e.g. a global Ruby.
 RUBY_DIR     := $(shell cd $(WEB_DIR) && mise where ruby 2>/dev/null)
 SYSTEMD_DIR  := /etc/systemd/system
 # Shell scripts (by extension or shebang), tracked or new, minus third-party
