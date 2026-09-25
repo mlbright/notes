@@ -59,7 +59,8 @@ production, so the app generates https URLs and secure cookies based on
   Caddy machine
 - [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
   (not in Ubuntu's apt repositories) and, for the one-time backup provisioning,
-  admin credentials for your AWS account (e.g. `aws login`)
+  admin credentials for your AWS account (e.g. `aws login`, or a named AWS CLI
+  profile)
 
 ## First-time setup
 
@@ -76,6 +77,7 @@ $EDITOR web/.env
 
 # 3. Install system packages + systemd units (uses sudo). The first run
 #    prompts for the S3 bucket and provisions it; see "Backups" below.
+#    Add AWS_PROFILE=<name> to provision with a named AWS CLI profile.
 make install
 
 # 4. Gems, database, assets, start
@@ -179,6 +181,14 @@ aws login                       # admin credentials, used once for provisioning
 deploy/install-backup.sh        # or: make install-backup
 ```
 
+To provision with a named AWS CLI profile instead of the default credentials:
+
+```bash
+aws login --profile <name>      # if the profile uses an `aws login` session
+make install-backup AWS_PROFILE=<name>
+# or: deploy/install-backup.sh --admin-profile <name>
+```
+
 The script prompts for bucket, prefix (default `notes`), and region. Then it:
 
 1. Creates the bucket if missing, blocks public access, enables versioning, and
@@ -193,10 +203,12 @@ The script prompts for bucket, prefix (default `notes`), and region. Then it:
 4. Verifies the key, installs and enables the systemd units, and runs a first
    backup.
 
-Re-running it is safe. Use `--admin-profile NAME` to provision with a named AWS
-profile, and `--no-provision` to skip AWS entirely and only install the units
-from an existing `backup.env`. `make install-backup` passes `--no-provision`
-automatically once `backup.env` exists.
+Re-running it is safe. Use `--no-provision` to skip AWS entirely and only
+install the units from an existing `backup.env`. `make install-backup` passes
+`--no-provision` automatically once `backup.env` exists, so the profile only
+matters on the first run (or when you run the script directly to re-provision).
+The profile is used for provisioning only: the timer always runs with the backup
+IAM user's key from `backup.env`.
 
 ### Operating
 
@@ -222,7 +234,8 @@ for disaster recovery and for moving to a new machine.
 
 1. On the target machine, meet the Prerequisites (mise, Ruby via `mise install`
    once the tree is present, AWS CLI v2), and get credentials that can read the
-   bucket: `aws login`, or the backup key from a saved copy of `backup.env`.
+   bucket: `aws login` (optionally for a named profile), or the backup key from
+   a saved copy of `backup.env`.
 2. If the old machine is still up, stop it first (see step 1 of the cold cutover
    below). Otherwise it keeps writing to the same mirror.
 3. Fetch the restore script from the mirror and run it:
@@ -232,11 +245,15 @@ for disaster recovery and for moving to a new machine.
    S3_BUCKET=<bucket> S3_PREFIX=notes ./restore-s3.sh ~/notes
    ```
 
+   With a named AWS CLI profile, pass `--profile <name>` to both `aws` and
+   `restore-s3.sh`.
+
    It downloads the latest mirror, removes stale WAL sidecars, and re-applies
    the Metadata Manifest (executable bits, `600` secrets, symlinks). It refuses
    while `notes-web` runs on this machine, and refuses to overwrite existing
    production databases without `--force`. It never deletes local files.
-   `--env path/to/backup.env` loads the bucket and credentials from a file.
+   `--env path/to/backup.env` loads the bucket and credentials from a file
+   (`--profile` takes precedence over its key).
 
 4. Install and start:
 
@@ -248,8 +265,9 @@ for disaster recovery and for moving to a new machine.
    ```
 
 5. If the hostname changed, the timer now runs with the old machine's key, which
-   still works. Run `deploy/install-backup.sh` (with provisioning) to give this
-   machine its own key, then delete the old one in IAM.
+   still works. Run `deploy/install-backup.sh` (with provisioning, and
+   `--admin-profile <name>` if needed) to give this machine its own key, then
+   delete the old one in IAM.
 
 Alternatively, restore into a staging directory and `rsync -a` it into place.
 The restored directory is a normal git checkout, including any work that was

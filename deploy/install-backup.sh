@@ -4,8 +4,9 @@
 #
 # Usage: deploy/install-backup.sh [--no-provision] [--admin-profile NAME]
 #
-# Provisioning (the default) uses admin AWS credentials (the default
-# credential chain, e.g. an `aws login` session, or --admin-profile) to:
+# Provisioning (the default) uses admin AWS credentials (the AWS CLI profile
+# named by --admin-profile, else the default credential chain, e.g. an
+# `aws login` session or AWS_PROFILE) to:
 #   - create the bucket if missing, block public access, enable versioning,
 #     and add a lifecycle rule expiring superseded versions under the prefix
 #     after NONCURRENT_DAYS (default 30)
@@ -115,9 +116,14 @@ if ((provision)); then
   region=$(ask "AWS region" "${region_default:-us-east-1}")
   [[ -n ${bucket} ]] || die "a bucket name is required"
 
+  if [[ -n ${admin_profile} ]]; then
+    login_hint="aws login --profile ${admin_profile}"
+  else
+    login_hint="aws login, or --admin-profile NAME"
+  fi
   account=$(admin sts get-caller-identity --query Account --output text) ||
-    die "no admin AWS credentials (try: aws login, or --admin-profile NAME)"
-  log "Provisioning s3://${bucket}/${prefix}/ in account ${account} (${region})"
+    die "no admin AWS credentials (try: ${login_hint})"
+  log "Provisioning s3://${bucket}/${prefix}/ in account ${account} (${region})${admin_profile:+ as profile ${admin_profile}}"
 
   # --- Bucket ---
   if admin s3api head-bucket --bucket "${bucket}" 2>/dev/null; then

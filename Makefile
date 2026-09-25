@@ -14,6 +14,10 @@
 #   make status     service + backup timer status
 #   make logs       follow the service journal
 #
+# AWS_PROFILE=NAME selects the AWS CLI profile that provisions the S3 backup
+# on first install, e.g. `make install AWS_PROFILE=prod`. Without it, the
+# default credential chain is used.
+#
 # See deploy/DEPLOYMENT.md for the full runbook, including machine migration.
 
 APP_DIR      := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
@@ -53,10 +57,11 @@ install-web: check-ruby
 	sudo systemctl enable notes-web.service
 	@echo "Installed notes-web.service (WorkingDirectory=$(WEB_DIR), User=$(SERVICE_USER))"
 
-# Provisions S3 + IAM and writes deploy/backup.env on first run (interactive);
-# once backup.env exists (e.g. after a restore) it only installs the units.
+# Provisions S3 + IAM (as AWS_PROFILE, if set) and writes deploy/backup.env on
+# first run (interactive); once backup.env exists (e.g. after a restore) it
+# only installs the units.
 install-backup:
-	deploy/install-backup.sh $(if $(wildcard deploy/backup.env),--no-provision)
+	deploy/install-backup.sh $(if $(wildcard deploy/backup.env),--no-provision) $(if $(AWS_PROFILE),--admin-profile $(AWS_PROFILE))
 
 backup:
 	sudo systemctl start notes-backup.service
