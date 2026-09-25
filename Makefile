@@ -13,6 +13,8 @@
 #   make backup     run a backup to S3 now
 #   make status     service + backup timer status
 #   make logs       follow the service journal
+#   make lint       shellcheck + shfmt check of the shell scripts (fails if unformatted)
+#   make format     format the shell scripts with shfmt
 #
 # AWS_PROFILE=NAME selects the AWS CLI profile that provisions the S3 backup
 # on first install, e.g. `make install AWS_PROFILE=prod`. Without it, the
@@ -27,6 +29,9 @@ SERVICE_USER := $(shell id -un)
 # root mise.toml.
 RUBY_DIR     := $(shell cd $(WEB_DIR) && mise where ruby 2>/dev/null)
 SYSTEMD_DIR  := /etc/systemd/system
+# Shell scripts (by extension or shebang), tracked or new, minus third-party
+# agent skills. Deferred (=) so other targets don't need shfmt installed.
+SHELL_SCRIPTS = $(shell git ls-files -z --cached --others --exclude-standard -- ':!.github/skills' | xargs -0 shfmt -f 2>/dev/null)
 
 # Substitutes template placeholders when generating systemd units.
 RENDER = sed \
@@ -35,7 +40,7 @@ RENDER = sed \
 	-e 's|@RUBY_DIR@|$(RUBY_DIR)|g' \
 	-e 's|@SERVICE_USER@|$(SERVICE_USER)|g'
 
-.PHONY: install install-deps install-web install-backup backup update restart status logs check-ruby
+.PHONY: install install-deps install-web install-backup backup update restart status logs check-ruby lint format check-shell-tools
 
 install: install-deps install-web install-backup
 
@@ -84,3 +89,16 @@ status:
 
 logs:
 	journalctl -u notes-web -f
+
+# Style (2-space indent, indented case arms) comes from .editorconfig, so
+# editors that run shfmt agree with these targets.
+check-shell-tools:
+	@command -v shellcheck >/dev/null || { echo "error: shellcheck not found (sudo apt install shellcheck)"; exit 1; }
+	@command -v shfmt >/dev/null || { echo "error: shfmt not found (https://github.com/mvdan/sh, e.g. mise use -g shfmt)"; exit 1; }
+
+lint: check-shell-tools
+	shellcheck $(SHELL_SCRIPTS)
+	shfmt --diff $(SHELL_SCRIPTS)
+
+format: check-shell-tools
+	shfmt --write $(SHELL_SCRIPTS)

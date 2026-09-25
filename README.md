@@ -31,6 +31,8 @@ on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
 - **SQLite** 3.x with development headers
 - **libvips** (for image processing / Active Storage variants)
 - **Node.js** (only for the optional `mcp/` server; the web app uses importmap)
+- **shellcheck** and **[shfmt](https://github.com/mvdan/sh)** (only for
+  `make lint` / `make format` on the shell scripts)
 
 On Debian/Ubuntu:
 
@@ -44,7 +46,7 @@ sudo apt-get install sqlite3 libsqlite3-dev libvips
 notes/
 ├── AGENTS.md           # Architecture and design specification
 ├── CONTEXT.md          # Glossary of domain terms
-├── Makefile            # Deployment targets (make install, make update)
+├── Makefile            # Deployment targets, plus shell script lint/format
 ├── README.md           # This file
 ├── deploy/             # systemd unit templates, backup script, Caddy notes
 ├── docs/
@@ -132,6 +134,19 @@ This runs the full CI pipeline:
 3. `bin/bundler-audit` — Gem vulnerability audit
 4. `bin/importmap audit` — JavaScript dependency audit
 5. `bin/brakeman` — Static security analysis
+
+### Shell Scripts
+
+The shell scripts in `deploy/`, `scripts/`, and `web/bin/` are linted with
+ShellCheck and formatted with shfmt, from the repo root:
+
+```bash
+make lint     # shellcheck, then fail if any script is not shfmt-formatted
+make format   # rewrite the scripts in place with shfmt
+```
+
+The style (2-space indent, indented `case` arms) lives in `.editorconfig`, so
+editors that run shfmt format the same way.
 
 ## Building for Production
 

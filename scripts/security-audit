@@ -13,8 +13,8 @@ NC='\033[0m' # No Color
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FAILURES=0
 
-info()  { printf "${GREEN}[INFO]${NC}  %s\n" "$1"; }
-warn()  { printf "${YELLOW}[WARN]${NC}  %s\n" "$1"; }
+info() { printf "${GREEN}[INFO]${NC}  %s\n" "$1"; }
+warn() { printf "${YELLOW}[WARN]${NC}  %s\n" "$1"; }
 error() { printf "${RED}[FAIL]${NC}  %s\n" "$1"; }
 
 # ── Ruby gems (web/) ────────────────────────────────────────────────
@@ -33,10 +33,10 @@ audit_ruby() {
 
     # Extract vulnerable gem names from bundler-audit output
     local gems
-    gems=$(bundle exec bundler-audit check 2>&1 \
-      | grep '^Name:' \
-      | awk '{print $2}' \
-      | sort -u)
+    gems=$(bundle exec bundler-audit check 2>&1 |
+      grep '^Name:' |
+      awk '{print $2}' |
+      sort -u)
 
     if [[ -z "$gems" ]]; then
       error "Could not determine which gems to update"
