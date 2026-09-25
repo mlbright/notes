@@ -99,7 +99,6 @@ class Note < ApplicationRecord
   def self.search(query)
     return none if query.blank?
     where("id IN (SELECT rowid FROM notes_search_index WHERE notes_search_index MATCH ?)", query)
-      #.order(created_at: :desc)
       .order(updated_at: :desc)
   end
 
