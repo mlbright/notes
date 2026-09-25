@@ -120,8 +120,11 @@ write it by hand. `chmod 600`.
 
 ## Make targets
 
+Run `make` (or `make help`) to list the targets with the variables and examples.
+
 | Target                | What it does                                                                            |
 | --------------------- | --------------------------------------------------------------------------------------- |
+| `make help`           | List targets, variables, and examples (the default target)                              |
 | `make install`        | `install-deps` + `install-web` + `install-backup` (idempotent)                          |
 | `make install-deps`   | apt packages (build tools, sqlite3, libvips, …)                                         |
 | `make install-web`    | Renders + installs `notes-web.service`, enables it                                      |

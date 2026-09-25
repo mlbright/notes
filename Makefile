@@ -1,4 +1,5 @@
-# Deployment for the Notes app.
+# Deployment and development tasks for the Notes app. Run `make` (or
+# `make help`) for the targets, variables, and examples.
 #
 # Production runs directly from this checkout: all state (SQLite databases,
 # Active Storage blobs, secrets) lives inside this directory. The only
@@ -7,18 +8,6 @@
 #
 # Run make as the user that will own the service (normally your login user,
 # not root). Recipes use sudo where system access is required.
-#
-#   make install    one-time (and after Ruby upgrades): apt deps + systemd units
-#   make update     make the running service reflect the current working tree
-#   make backup     run a backup to S3 now
-#   make status     service + backup timer status
-#   make logs       follow the service journal
-#   make lint       shellcheck + shfmt check of the shell scripts (fails if unformatted)
-#   make format     format the shell scripts with shfmt
-#
-# AWS_PROFILE=NAME selects the AWS CLI profile that provisions the S3 backup
-# on first install, e.g. `make install AWS_PROFILE=prod`. Without it, the
-# default credential chain is used.
 #
 # See deploy/DEPLOYMENT.md for the full runbook, including machine migration.
 
@@ -40,9 +29,33 @@ RENDER = sed \
 	-e 's|@RUBY_DIR@|$(RUBY_DIR)|g' \
 	-e 's|@SERVICE_USER@|$(SERVICE_USER)|g'
 
-.PHONY: install install-deps install-web install-backup backup update restart status logs check-ruby lint format check-shell-tools
+.PHONY: help install install-deps install-web install-backup backup update restart status logs check-ruby lint format check-shell-tools
 
-install: install-deps install-web install-backup
+.DEFAULT_GOAL := help
+
+# Lists the targets annotated with `## description`, grouped under the
+# `##@ Section` lines, then variables and examples.
+help:
+	@echo 'Deployment and development tasks for the Notes app. Production runs'
+	@echo 'from this checkout; see deploy/DEPLOYMENT.md for the full runbook.'
+	@echo
+	@echo 'Usage: make [TARGET ...] [VAR=value ...]'
+	@awk 'BEGIN { FS = ":.*## " } \
+		/^##@ / { printf "\n%s:\n", substr($$0, 5) } \
+		/^[a-z-]+:.*## / { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo
+	@echo 'Variables:'
+	@echo '  AWS_PROFILE=NAME AWS CLI profile that provisions the S3 backup'
+	@echo
+	@echo 'Examples:'
+	@echo '  make install AWS_PROFILE=prod  first install; provision backups as "prod"'
+	@echo '  git pull && make update        deploy what is now in the working tree'
+	@echo '  make status                    is notes-web up? when is the next backup?'
+	@echo '  make format lint               fix script formatting, then lint'
+
+##@ Setup
+
+install: install-deps install-web install-backup ## install-deps + install-web + install-backup (idempotent)
 
 check-ruby:
 	@test -n "$(RUBY_DIR)" && test -x "$(RUBY_DIR)/bin/ruby" || { \
@@ -50,13 +63,13 @@ check-ruby:
 		exit 1; \
 	}
 
-install-deps:
+install-deps: ## Install apt packages (build tools, sqlite3, libvips, ...)
 	sudo apt-get update -qq
 	sudo apt-get install -y -qq \
 		build-essential git curl rsync sqlite3 libsqlite3-dev libvips \
 		libssl-dev libreadline-dev zlib1g-dev libyaml-dev libffi-dev
 
-install-web: check-ruby
+install-web: check-ruby ## Render + enable notes-web.service; re-run after Ruby upgrades
 	$(RENDER) deploy/notes-web.service.tmpl | sudo tee $(SYSTEMD_DIR)/notes-web.service >/dev/null
 	sudo systemctl daemon-reload
 	sudo systemctl enable notes-web.service
@@ -65,30 +78,34 @@ install-web: check-ruby
 # Provisions S3 + IAM (as AWS_PROFILE, if set) and writes deploy/backup.env on
 # first run (interactive); once backup.env exists (e.g. after a restore) it
 # only installs the units.
-install-backup:
+install-backup: ## Provision S3 backup on first run; install its service + timer
 	deploy/install-backup.sh $(if $(wildcard deploy/backup.env),--no-provision) $(if $(AWS_PROFILE),--admin-profile $(AWS_PROFILE))
 
-backup:
+##@ Operations
+
+backup: ## Run a backup to S3 now
 	sudo systemctl start notes-backup.service
 
 # No git operations here by design: production runs whatever the working
 # tree contains, and git is the operator's business.
-update: check-ruby
+update: check-ruby ## Deploy the working tree: bundle, migrate, assets, restart
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" bundle install
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails db:prepare
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails assets:precompile
 	sudo systemctl restart notes-web.service
 
-restart:
+restart: ## Restart notes-web
 	sudo systemctl restart notes-web.service
 
-status:
+status: ## Show notes-web status and the backup timer schedule
 	@systemctl status notes-web.service --no-pager || true
 	@echo
 	@systemctl list-timers notes-backup.timer --no-pager || true
 
-logs:
+logs: ## Follow the notes-web journal
 	journalctl -u notes-web -f
+
+##@ Development
 
 # Style (2-space indent, indented case arms) comes from .editorconfig, so
 # editors that run shfmt agree with these targets.
@@ -96,9 +113,9 @@ check-shell-tools:
 	@command -v shellcheck >/dev/null || { echo "error: shellcheck not found (sudo apt install shellcheck)"; exit 1; }
 	@command -v shfmt >/dev/null || { echo "error: shfmt not found (https://github.com/mvdan/sh, e.g. mise use -g shfmt)"; exit 1; }
 
-lint: check-shell-tools
+lint: check-shell-tools ## ShellCheck + shfmt check of the shell scripts
 	shellcheck $(SHELL_SCRIPTS)
 	shfmt --diff $(SHELL_SCRIPTS)
 
-format: check-shell-tools
+format: check-shell-tools ## Format the shell scripts in place with shfmt
 	shfmt --write $(SHELL_SCRIPTS)

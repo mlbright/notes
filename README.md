@@ -46,7 +46,7 @@ sudo apt-get install sqlite3 libsqlite3-dev libvips
 notes/
 ├── AGENTS.md           # Architecture and design specification
 ├── CONTEXT.md          # Glossary of domain terms
-├── Makefile            # Deployment targets, plus shell script lint/format
+├── Makefile            # Deployment targets and shell lint/format (`make` lists them)
 ├── README.md           # This file
 ├── deploy/             # systemd unit templates, backup script, Caddy notes
 ├── docs/
