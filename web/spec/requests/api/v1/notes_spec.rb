@@ -201,16 +201,18 @@ RSpec.describe "Api::V1::Notes", type: :request do
       expect(json["notes"].size).to eq(1)
     end
 
-    it "returns results in reverse chronological order" do
-      older = create(:note, user: user, title: "Ruby basics", created_at: 2.days.ago)
-      newer = create(:note, user: user, title: "Ruby advanced", created_at: 1.hour.ago)
-      middle = create(:note, user: user, title: "Ruby tips", created_at: 1.day.ago)
+    it "returns the most recently updated results first" do
+      # Creation order and created_at both disagree with updated_at, so only
+      # ordering by updated_at passes.
+      untouched = create(:note, user: user, title: "Ruby basics", created_at: 2.days.ago, updated_at: 2.days.ago)
+      edited = create(:note, user: user, title: "Ruby advanced", created_at: 3.days.ago, updated_at: 1.hour.ago)
+      recent = create(:note, user: user, title: "Ruby tips", created_at: 1.day.ago, updated_at: 1.day.ago)
 
       get "/api/v1/notes/search", params: { q: "Ruby" }, headers: headers
       expect(response).to have_http_status(:ok)
 
       json = JSON.parse(response.body)
-      expect(json["notes"].map { |n| n["id"] }).to eq([ newer.id, middle.id, older.id ])
+      expect(json["notes"].map { |n| n["id"] }).to eq([ edited.id, recent.id, untouched.id ])
     end
 
     it "returns error without query" do
