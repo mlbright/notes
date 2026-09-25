@@ -36,7 +36,7 @@ All of these are gitignored. Everything else is code and regenerable.
                           │ Tailscale, plain HTTP
                ┌──────────▼──────────────────┐
                │ this machine :3002 Thruster │   ← listens on all interfaces
-               │        127.0.0.1:3001 Puma  │   ← loopback only
+               │              :3001 Puma     │   ← also on all interfaces
                │        + Solid Queue        │
                └──────────┬──────────────────┘
                           │

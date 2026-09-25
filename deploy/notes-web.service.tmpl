@@ -24,9 +24,8 @@ SyslogIdentifier=notes-web
 # Environment
 Environment=PATH=@RUBY_DIR@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=RAILS_ENV=production
-# Puma listens on PORT, loopback only (see config/puma.rb). Thruster listens
-# on HTTP_PORT on all interfaces; the reverse proxy on the Caddy machine
-# connects to it over Tailscale.
+# Puma listens on PORT and Thruster on HTTP_PORT, both on all interfaces; the
+# reverse proxy on the Caddy machine connects to Thruster over Tailscale.
 Environment=PORT=3001
 Environment=TARGET_PORT=3001
 Environment=HTTP_PORT=3002

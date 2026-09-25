@@ -4,7 +4,9 @@ Date: 2026-07-04
 
 ## Status
 
-Accepted
+Accepted. Amended 2026-09-25: Puma listens on all interfaces, not loopback
+only. (It always had: `rails server` binds 0.0.0.0 whenever `PORT` is set,
+regardless of `config/puma.rb`.)
 
 ## Context
 
@@ -31,7 +33,8 @@ the directory is the systemd unit (plus timer), generated from in-repo templates
 by `make install` with no secrets in it. The same checkout is also the
 development workspace; `make update` performs no git operations. Caddy is not
 installed on this machine; the app exposes Thruster on port 3002 to the tailnet,
-Puma binds loopback only, and Rails runs with `assume_ssl`/`force_ssl` on.
+Puma listens on port 3001 on all interfaces, and Rails runs with
+`assume_ssl`/`force_ssl` on.
 
 ## Consequences
 

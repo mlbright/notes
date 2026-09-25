@@ -29,14 +29,10 @@ threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
-# In production, bind to loopback only: Thruster is the sole listener exposed
-# to the network (the reverse proxy lives on a separate machine and connects
-# to Thruster, never to Puma directly).
-if ENV.fetch("RAILS_ENV") { ENV.fetch("RACK_ENV", "development") } == "production"
-  bind "tcp://127.0.0.1:#{ENV.fetch('PORT', 3000)}"
-else
-  port ENV.fetch("PORT", 3000)
-end
+# Puma listens on all interfaces, in production too. (`rails server` binds
+# 0.0.0.0 whenever PORT is set, as the systemd unit does, so a loopback `bind`
+# here would be ignored anyway.)
+port ENV.fetch("PORT", 3000)
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart

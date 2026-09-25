@@ -122,7 +122,7 @@ using Turbo Native (Hotwire).
   templates in `deploy/` by `make install` and are the only artifacts outside
   the repo; the app runs as the operator's user with Solid Queue in-process
 - Caddy runs on a separate machine as reverse proxy with automatic TLS, reaching
-  Thruster over Tailscale; Puma binds loopback only
+  Thruster over Tailscale; Thruster and Puma both listen on all interfaces
 - Backups: a systemd timer incrementally syncs the whole checkout (minus
   Ephemeral Files, with SQLite snapshots in place of live databases) to a
   versioned S3 mirror every hour; `deploy/restore-s3.sh` restores it (see
