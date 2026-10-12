@@ -204,6 +204,33 @@ RSpec.describe Note, type: :model do
     end
   end
 
+  describe ".search" do
+    let(:user) { create(:user) }
+
+    it "matches notes containing every term" do
+      both = create(:note, user: user, body: "ssh port forwarding")
+      create(:note, user: user, body: "ssh keys")
+
+      expect(Note.search("ssh forwarding")).to eq([ both ])
+    end
+
+    it "reads nothing the user types as FTS5 syntax" do
+      note = create(:note, user: user, title: "Tunnels", body: %(Run "ssh -N -L 8443:localhost:443 host" for NOT title: forwarding))
+
+      [ "ssh -L", "title:tunnels", "NOT forwarding", %(unbalanced "quote), "8443:localhost:443", "ssh*", "(ssh", "-" ].each do |query|
+        expect { Note.search(query).to_a }.not_to raise_error, query
+      end
+      expect(Note.search("ssh -L")).to eq([ note ])
+      expect(Note.search("NOT forwarding")).to eq([ note ])
+    end
+
+    it "matches nothing for a blank query" do
+      create(:note, user: user, body: "anything")
+
+      expect(Note.search("  ")).to be_empty
+    end
+  end
+
   describe "#accessible_by?" do
     let(:owner) { create(:user) }
     let(:other) { create(:user) }

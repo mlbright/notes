@@ -215,6 +215,16 @@ RSpec.describe "Api::V1::Notes", type: :request do
       expect(json["notes"].map { |n| n["id"] }).to eq([ edited.id, recent.id, untouched.id ])
     end
 
+    it "treats the query as plain text, never as search syntax" do
+      note = create(:note, user: user, title: "Tunnels", body: "ssh -N -L 8443:localhost:443 host")
+
+      get "/api/v1/notes/search", params: { q: "ssh -L" }, headers: headers
+      expect(response).to have_http_status(:ok)
+
+      json = JSON.parse(response.body)
+      expect(json["notes"].map { |n| n["id"] }).to eq([ note.id ])
+    end
+
     it "returns error without query" do
       get "/api/v1/notes/search", headers: headers
       expect(response).to have_http_status(:bad_request)

@@ -102,9 +102,12 @@ class Note < ApplicationRecord
     content
   end
 
+  # Notes containing every whitespace-separated term of the query. Each term is
+  # quoted so that nothing a user types can be read as FTS5 syntax.
   def self.search(query)
-    return none if query.blank?
-    where("id IN (SELECT rowid FROM notes_search_index WHERE notes_search_index MATCH ?)", query)
+    terms = query.to_s.split.map { |term| %("#{term.gsub('"', '""')}") }
+    return none if terms.empty?
+    where("id IN (SELECT rowid FROM notes_search_index WHERE notes_search_index MATCH ?)", terms.join(" "))
       .order(updated_at: :desc)
   end
 
