@@ -175,9 +175,14 @@ server.tool(
 
 server.tool(
   "search_notes",
-  "Full-text search across note titles and bodies. Returns matching non-trashed notes.",
+  "Find notes whose title or body contains every word of the query. Returns whole non-trashed notes, most recently updated first. " +
+    "To find what the notes say about a topic or to ground an answer, use retrieve_passages instead: " +
+    "it matches meaning as well as wording, ranks by relevance, and returns only the relevant excerpts.",
   {
-    query: z.string().min(1).describe("Search query"),
+    query: z
+      .string()
+      .min(1)
+      .describe("Words every matching note must contain, in plain words (no search syntax)"),
     page: z
       .number()
       .int()

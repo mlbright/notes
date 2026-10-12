@@ -39,7 +39,7 @@ npm run build
 | `create_note`    | Create a note with title, body (markdown), optional tags                       |
 | `update_note`    | Update a note's title, body, pinned status, or tags                            |
 | `delete_note`    | Soft-delete (trash) a note; if already trashed, permanently delete             |
-| `search_notes`   | Full-text search across titles and bodies                                      |
+| `search_notes`   | Whole notes containing every word; for topics, prefer `retrieve_passages`      |
 | `pin_note`       | Toggle pinned status                                                           |
 | `archive_note`   | Archive a note                                                                 |
 | `unarchive_note` | Unarchive a note                                                               |
