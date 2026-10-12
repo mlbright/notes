@@ -134,6 +134,25 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe ".authenticate_by_api_token" do
+    let!(:user) { create(:user) }
+
+    it "returns the user for a valid token" do
+      token = user.generate_api_token!
+      expect(User.authenticate_by_api_token(token)).to eq(user)
+    end
+
+    it "returns nil for an expired token" do
+      user.update!(api_token: "test", token_expires_at: 1.day.ago)
+      expect(User.authenticate_by_api_token("test")).to be_nil
+    end
+
+    it "returns nil for a blank token even when a user has no token" do
+      expect(User.authenticate_by_api_token(nil)).to be_nil
+      expect(User.authenticate_by_api_token("")).to be_nil
+    end
+  end
+
   describe "#accessible_notes" do
     let(:user) { create(:user) }
     let(:other_user) { create(:user) }

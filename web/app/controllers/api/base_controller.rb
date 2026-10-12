@@ -7,12 +7,12 @@ module Api
     private
 
     def authenticate_api_user!
-      token = request.headers["Authorization"]&.split(" ")&.last
-      @current_user = User.find_by(api_token: token)
+      @current_user = User.authenticate_by_api_token(bearer_token)
+      render json: { error: "Unauthorized" }, status: :unauthorized unless @current_user
+    end
 
-      if @current_user.nil? || @current_user.token_expired?
-        render json: { error: "Unauthorized" }, status: :unauthorized
-      end
+    def bearer_token
+      request.headers["Authorization"]&.split(" ")&.last
     end
 
     def current_user

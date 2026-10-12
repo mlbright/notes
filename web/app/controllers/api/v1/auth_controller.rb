@@ -6,7 +6,7 @@ module Api
       def create_token
         user = if params[:password].present?
           User.authenticate_by_password(params[:email], params[:password])
-        else
+        elsif params[:uid].present?
           User.find_by(email: params[:email], uid: params[:uid])
         end
 
@@ -19,8 +19,7 @@ module Api
       end
 
       def refresh_token
-        token = request.headers["Authorization"]&.split(" ")&.last
-        user = User.find_by(api_token: token)
+        user = User.authenticate_by_api_token(bearer_token)
 
         if user
           new_token = user.refresh_api_token!

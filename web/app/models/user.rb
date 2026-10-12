@@ -31,6 +31,12 @@ class User < ApplicationRecord
     user.authenticate(password) || nil
   end
 
+  def self.authenticate_by_api_token(token)
+    return nil if token.blank?
+    user = find_by(api_token: token)
+    user unless user.nil? || user.token_expired?
+  end
+
   def oauth_user?
     uid.present? && provider.present?
   end
@@ -55,7 +61,6 @@ class User < ApplicationRecord
   end
 
   def refresh_api_token!
-    return generate_api_token! if token_expired?
     update!(token_expires_at: 30.days.from_now)
     api_token
   end

@@ -29,7 +29,7 @@
         <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700">
           <span class="text-green-600 font-semibold">POST</span> /api/v1/auth/refresh
         </div>
-        <p class="text-xs text-gray-500 mt-2">Send your current token in the Authorization header. Returns a new token.</p>
+        <p class="text-xs text-gray-500 mt-2">Send your current, unexpired token in the Authorization header. Returns it with a new 30-day expiry; expired tokens are rejected.</p>
       </div>
     </div>
   </section>
