@@ -3,7 +3,8 @@
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that
 connects AI agents to the Notes application. Enables Claude, Copilot, and other
 MCP-compatible agents to create, search, read, update, pin, archive, tag, and
-share notes.
+share notes, and to retrieve the passages most relevant to a question so they
+can ground answers in them.
 
 ## Prerequisites
 
@@ -44,6 +45,12 @@ npm run build
 | `unarchive_note` | Unarchive a note                                                               |
 | `restore_note`   | Restore a note from trash                                                      |
 | `list_trash`     | List trashed notes                                                             |
+
+### Retrieval
+
+| Tool                | Description                                                                                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `retrieve_passages` | The note excerpts most relevant to a query, matched by meaning and wording, best first, each with its headings and note. Filters: tag, archived (`include`/`exclude`/`only`), updated after/before, limit (default 8, max 50). For grounding answers in notes |
 
 ### Tags
 

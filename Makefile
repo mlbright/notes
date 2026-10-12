@@ -88,10 +88,11 @@ backup: ## Run a backup to S3 now
 
 # No git operations here by design: production runs whatever the working
 # tree contains, and git is the operator's business.
-update: check-ruby ## Deploy the working tree: bundle, migrate, assets, restart
+update: check-ruby ## Deploy the working tree: bundle, migrate, assets, model, restart
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" bundle install
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails db:prepare
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails assets:precompile
+	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails retrieval:install_model
 	sudo systemctl restart notes-web.service
 
 restart: ## Restart notes-web

@@ -130,7 +130,7 @@ Run `make` (or `make help`) to list the targets with the variables and examples.
 | `make install-web`    | Renders + installs `notes-web.service`, enables it                                      |
 | `make install-backup` | `deploy/install-backup.sh`: provisions S3 on first run, installs backup service + timer |
 | `make backup`         | Run a backup now                                                                        |
-| `make update`         | `bundle install` → `db:prepare` → `assets:precompile` → restart                         |
+| `make update`         | `bundle install` → `db:prepare` → `assets:precompile` → model → restart                 |
 | `make restart`        | Restart the service                                                                     |
 | `make status`         | Service status + backup timer schedule                                                  |
 | `make logs`           | Follow the journal                                                                      |
@@ -151,6 +151,14 @@ make update
 Because this is a dual-use checkout, remember: **a service restart boots
 whatever is in the working tree**, including half-finished edits. Keep the tree
 runnable before `make update`, reboots, or anything that restarts the service.
+
+`make update` also installs the pinned embedding model that Retrieval uses
+(about 32 MB, into `web/vendor/models`) if it is missing. Nothing is downloaded
+at runtime. The model is an Ephemeral File: backups skip it and `make update`
+fetches it again after a restore or cutover. Once in use it takes about 120 MB
+in Puma (for queries) and 120 MB in the Solid Queue worker (for embedding
+notes). After the first deploy, the sweep cuts and embeds every note within
+about 20 minutes; until then, notes match by wording only.
 
 ## Backups
 
@@ -391,6 +399,7 @@ tail -f web/log/production.log   # Rails application log
 | Blocked host error              | `APP_HOST` in `web/.env` must equal the public domain                                                                                         |
 | Redirect loop / http URLs       | Caddy must forward `X-Forwarded-Proto` (default `reverse_proxy` does)                                                                         |
 | Assets not loading              | `make update` (re-runs `assets:precompile`)                                                                                                   |
+| Retrieval ranks by wording only | Admin dashboard's Retrieval card. Missing model: `make update`. Notes not embedded: the sweep runs every 10 min                               |
 | Master key errors               | `web/config/master.key` present and `chmod 600`?                                                                                              |
 | Write errors (DB/uploads)       | `ReadWritePaths` in the unit; re-run `make install-web` if the repo moved                                                                     |
 | Stale Ruby after upgrade        | Re-run `make install-web` (unit bakes in the mise Ruby path)                                                                                  |

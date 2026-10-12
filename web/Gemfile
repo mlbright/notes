@@ -58,6 +58,11 @@ gem "pagy"
 # Markdown rendering
 gem "redcarpet"
 
+# Retrieval: local text embeddings (loaded lazily, see Retrieval::Embedder) and
+# vector distance functions for SQLite (loaded via config/database.yml)
+gem "informers", require: false
+gem "sqlite-vec", require: "sqlite_vec"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"

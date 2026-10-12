@@ -9,22 +9,29 @@ default: &default
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   timeout: 5000
 
-development:
+# The primary database also loads sqlite-vec, whose vec_distance_cosine() ranks
+# Passages for Retrieval (see docs/adr/0003).
+with_sqlite_vec: &with_sqlite_vec
   <<: *default
+  extensions:
+    - <%= SqliteVec.loadable_path %>
+
+development:
+  <<: *with_sqlite_vec
   database: storage/development.sqlite3
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
-  <<: *default
+  <<: *with_sqlite_vec
   database: storage/test.sqlite3
 
 # Store production database in the storage/ directory, which by default
 # is mounted as a persistent Docker volume in config/deploy.yml.
 production:
   primary:
-    <<: *default
+    <<: *with_sqlite_vec
     database: storage/production.sqlite3
   cache:
     <<: *default

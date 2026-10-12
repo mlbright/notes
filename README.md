@@ -9,6 +9,10 @@ on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
   Markdown; content stored as Markdown
 - **Organization** — Pin, archive, and tag notes with colored labels
 - **Full-text search** — SQLite FTS5-powered search across titles and bodies
+- **Retrieval for agents** — `GET /api/v1/passages` (and the MCP tool
+  `retrieve_passages`) returns the note excerpts most relevant to a query,
+  matched by meaning as well as wording, for grounding AI answers. Embeddings
+  come from a small local model; nothing leaves the server
 - **Version history** — Automatic snapshots on every save; view diffs and
   restore previous versions
 - **Sharing** — Share notes read-write with other users; revocable by the owner
@@ -198,7 +202,8 @@ Tailscale.
 # One-time (and after Ruby upgrades): apt deps + systemd units
 make install
 
-# Deploy the current working tree: bundle, migrate, precompile, restart
+# Deploy the current working tree: bundle, migrate, precompile, fetch the
+# embedding model, restart
 make update
 
 # Inspect
@@ -227,6 +232,22 @@ curl -X POST http://localhost:3000/api/v1/auth/token \
 curl http://localhost:3000/api/v1/notes \
   -H "Authorization: Bearer <token>"
 ```
+
+### Retrieval
+
+```bash
+# The passages most relevant to a query, best first
+curl "http://localhost:3000/api/v1/passages?q=when+does+the+car+insurance+renew" \
+  -H "Authorization: Bearer <token>"
+```
+
+Optional filters: `tag`, `archived` (`include`, `exclude` or `only`),
+`updated_after` / `updated_before` (ISO 8601) and `limit` (default 8, max 50).
+Notes are cut into Passages when saved and embedded in the background by a
+local model (`bge-small-en-v1.5`), installed into `web/vendor/models` by
+`make update` or `bin/rails retrieval:install_model`. Until a note is embedded
+it matches by wording only. See
+[ADR 0003](docs/adr/0003-retrieval-embeds-locally-and-ranks-by-exact-scan.md).
 
 ### Rate Limiting
 

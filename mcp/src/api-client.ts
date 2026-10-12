@@ -159,6 +159,17 @@ export class NotesApiClient {
     return this.request("GET", "/api/v1/notes/search", { params });
   }
 
+  async retrievePassages(params: {
+    q: string;
+    tag?: string;
+    archived?: string;
+    updated_after?: string;
+    updated_before?: string;
+    limit?: string;
+  }): Promise<{ ranking: string; passages: unknown[] }> {
+    return this.request("GET", "/api/v1/passages", { params });
+  }
+
   async togglePin(id: number): Promise<unknown> {
     return this.request("PATCH", `/api/v1/notes/${id}/toggle_pin`);
   }

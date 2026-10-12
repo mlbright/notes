@@ -8,6 +8,7 @@ RSpec.describe Note, type: :model do
     it { is_expected.to have_many(:note_versions).dependent(:destroy) }
     it { is_expected.to have_many(:shares).dependent(:destroy) }
     it { is_expected.to have_many(:shared_users).through(:shares) }
+    it { is_expected.to have_many(:passages).dependent(:delete_all) }
   end
 
   describe "validations" do
@@ -233,6 +234,70 @@ RSpec.describe Note, type: :model do
     it "does not create a version on initial save" do
       note = create(:note)
       expect(note.note_versions.count).to eq(0)
+    end
+  end
+
+  describe "passages" do
+    let(:note) { create(:note, title: "Backups", body: "# S3\n\nVersioned bucket.\n\n# Restore\n\nRun the script.") }
+
+    it "cuts Passages when the note is created" do
+      expect(note.passages.map { |passage| [ passage.heading_trail, passage.body ] }).to eq([
+        [ [ "S3" ], "Versioned bucket." ],
+        [ [ "Restore" ], "Run the script." ]
+      ])
+      expect(note.passages_version).to eq(Passage::Cutter::VERSION)
+    end
+
+    it "recuts them when the body changes" do
+      note.update!(body: "Just one paragraph.")
+      expect(note.passages.pluck(:body)).to eq([ "Just one paragraph." ])
+    end
+
+    it "recuts them when the title changes, since it is part of what is embedded" do
+      note.update!(title: "Disaster recovery")
+      expect(note.passages.pluck(:title).uniq).to eq([ "Disaster recovery" ])
+    end
+
+    it "leaves them alone when only the note's status changes" do
+      ids = note.passages.ids
+      note.archive!
+      note.toggle_pin!
+      expect(note.passages.reload.ids).to eq(ids)
+    end
+
+    it "keeps the embedding of a Passage whose text is unchanged" do
+      note.passages.each do |passage|
+        passage.update_columns(embedding: Passage.pack_embedding([ 1.0, 0.0 ]), embedding_model: "stand-in")
+      end
+
+      note.update!(body: "# S3\n\nVersioned bucket.\n\n# Restore\n\nRun the restore script.")
+
+      expect(note.passages.map { |passage| [ passage.body, passage.embedding_model ] }).to eq([
+        [ "Versioned bucket.", "stand-in" ],
+        [ "Run the restore script.", nil ]
+      ])
+    end
+
+    it "queues embedding after the change commits" do
+      note
+      expect { note.update!(body: "New text.") }.to have_enqueued_job(EmbedPassagesJob).exactly(:once)
+      expect { note.archive! }.not_to have_enqueued_job(EmbedPassagesJob)
+    end
+
+    it "deletes them with the note" do
+      note
+      expect { note.destroy! }.to change(Passage, :count).to(0)
+    end
+
+    it ".needing_passages finds notes never cut or cut by older rules" do
+      current = note
+      old = create(:note)
+      old.update_column(:passages_version, Passage::Cutter::VERSION - 1)
+      never = create(:note)
+      never.update_column(:passages_version, nil)
+
+      expect(Note.needing_passages).to contain_exactly(old, never)
+      expect(Note.needing_passages).not_to include(current)
     end
   end
 end

@@ -22,6 +22,9 @@ web/public/assets/*
 web/app/assets/builds/*
 !web/app/assets/builds/.keep
 
+# Embedding model for Retrieval (bin/rails retrieval:install_model).
+web/vendor/models/*
+
 # MCP server dependencies and build output (npm install && npm run build).
 mcp/node_modules/*
 mcp/dist/*

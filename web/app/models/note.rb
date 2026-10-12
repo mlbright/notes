@@ -6,6 +6,7 @@ class Note < ApplicationRecord
   has_many :note_versions, dependent: :destroy
   has_many :shares, dependent: :destroy
   has_many :shared_users, through: :shares, source: :user
+  has_many :passages, -> { order(:position) }, dependent: :delete_all
   has_many_attached :attachments
 
   validates :body, length: { maximum: ->(note) { note.max_size || 32_768 } }
@@ -18,8 +19,13 @@ class Note < ApplicationRecord
   scope :trashed, -> { where(trashed: true) }
   scope :stale_trash, -> { trashed.where(trashed_at: ..30.days.ago) }
   scope :ordered, -> { order(pinned: :desc, updated_at: :desc) }
+  scope :needing_passages, -> {
+    where(passages_version: nil).or(where.not(passages_version: Passage::Cutter::VERSION))
+  }
 
   after_update :create_version, if: :saved_change_to_body?
+  after_save :cut_passages!, if: -> { previously_new_record? || saved_change_to_title? || saved_change_to_body? }
+  after_commit :embed_passages_later, if: -> { @passages_recut }
 
   def soft_delete!
     update!(trashed: true, trashed_at: Time.current, pinned: false)
@@ -110,10 +116,37 @@ class Note < ApplicationRecord
     user_id == check_user.id || shares.exists?(user_id: check_user.id, permission: :read_write)
   end
 
+  # Replaces this note's Passages with ones cut from its current title and
+  # body. Passages whose embedding input is unchanged keep their embedding;
+  # the rest are embedded later by EmbedPassagesJob.
+  def cut_passages!
+    transaction do
+      previous = Passage.where(note_id: id).where.not(embedding: nil)
+        .pluck(:digest, :embedding, :embedding_model)
+        .to_h { |digest, embedding, model| [ digest, [ embedding, model ] ] }
+      Passage.where(note_id: id).delete_all
+
+      rows = Passage::Cutter.new(title:, body:, checklist: checklist?).cuts.each_with_index.map do |cut, position|
+        digest = Passage.digest_for(title:, heading_trail: cut.heading_trail, body: cut.body)
+        embedding, embedding_model = previous[digest]
+        { note_id: id, position:, title:, heading_trail: cut.heading_trail, body: cut.body, digest:, embedding:, embedding_model: }
+      end
+      Passage.insert_all!(rows) if rows.any?
+      update_column(:passages_version, Passage::Cutter::VERSION)
+    end
+    passages.reset
+    @passages_recut = true
+  end
+
   private
 
   def archived_notes_cannot_be_pinned
     errors.add(:pinned, "cannot be true for archived notes") if archived? && pinned?
+  end
+
+  def embed_passages_later
+    @passages_recut = false
+    EmbedPassagesJob.perform_later
   end
 
   def create_version

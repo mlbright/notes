@@ -199,6 +199,59 @@ server.tool(
 );
 
 server.tool(
+  "retrieve_passages",
+  "Retrieve the passages from the user's notes most relevant to a query, matched by meaning as well as wording, best first. " +
+    "Use this to ground answers in the user's notes. Each passage carries its text, the headings enclosing it, and its note " +
+    "(id, title, tags, timestamps, archived, owned or shared, web link); cite the note and headings, and use get_note for a note's full content. " +
+    "Covers owned and shared notes, archived included, never trashed ones.",
+  {
+    query: z.string().min(1).describe("What to look for, in plain words"),
+    tag: z.string().optional().describe("Only notes with this tag name"),
+    archived: z
+      .enum(["include", "exclude", "only"])
+      .optional()
+      .describe("Whether to include archived notes (default include)"),
+    updated_after: z
+      .string()
+      .optional()
+      .describe("Only notes updated at or after this ISO 8601 date or date-time"),
+    updated_before: z
+      .string()
+      .optional()
+      .describe("Only notes updated before this ISO 8601 date or date-time"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe("Maximum passages to return (default 8, at most 3 per note)"),
+  },
+  async (args) => {
+    try {
+      const result = await client.retrievePassages({
+        q: args.query,
+        tag: args.tag,
+        archived: args.archived,
+        updated_after: args.updated_after,
+        updated_before: args.updated_before,
+        limit: args.limit?.toString(),
+      });
+      const content = toolResult(result).content;
+      if (result.ranking === "keyword") {
+        content.unshift({
+          type: "text" as const,
+          text: "Note: semantic matching was unavailable, so these passages matched on wording only. If nothing fits, retry with words the notes are likely to contain.",
+        });
+      }
+      return { content };
+    } catch (err) {
+      return toolError(err);
+    }
+  }
+);
+
+server.tool(
   "pin_note",
   "Toggle the pinned status of a note. Pinned notes appear at the top of the list.",
   {

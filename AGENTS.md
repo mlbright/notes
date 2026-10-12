@@ -24,6 +24,9 @@ using Turbo Native (Hotwire).
 - **NoteVersion**: snapshot of note body + metadata, created on each save
 - **Share**: note_id, user_id, permission (read-write); owner can revoke
 - **Attachment**: file/image/video via Active Storage, belongs to a note
+- **Passage**: an excerpt of a note's current content with its Heading Trail,
+  recut whenever the note's title or body changes, plus its embedding (see
+  CONTEXT.md)
 
 ## Authentication & authorization
 
@@ -64,6 +67,21 @@ using Turbo Native (Hotwire).
 - Full-text search across note titles and bodies (SQLite FTS5)
 - Tag notes with user-defined labels for organization
 - Filter notes by tag, pinned/archived/trashed status, and date range
+
+### Retrieval
+
+- Agents retrieve the Passages most relevant to a query
+  (`GET /api/v1/passages`, MCP tool `retrieve_passages`): hybrid FTS5 keyword
+  and semantic ranking, merged by reciprocal rank fusion
+- Covers notes the user owns or that are shared with them, archived included,
+  never trashed; access is checked on every query
+- Embeddings come from a local model (`bge-small-en-v1.5`, int8) run in-process
+  with ONNX Runtime, installed by `make update` into `web/vendor/models` and
+  ranked with sqlite-vec's `vec_distance_cosine()` (see ADR 0003)
+- Notes are embedded only in Solid Queue jobs, never in a request: ONNX Runtime
+  holds the GVL for the whole of each call. Queries are embedded inline
+- Specs use `StandInEmbedder`; only `spec/models/retrieval/embedder_spec.rb`
+  loads the real model, and it skips itself when the model is not installed
 
 ### Export
 

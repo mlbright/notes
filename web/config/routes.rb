@@ -88,6 +88,7 @@ Rails.application.routes.draw do
       end
 
       resources :tags, except: [ :new, :edit ]
+      resources :passages, only: :index
     end
   end
 

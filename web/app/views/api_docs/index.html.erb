@@ -79,6 +79,45 @@
     </div>
   </section>
 
+  <%# Retrieval %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold mr-2">&#x1f50e;</span>
+      Retrieval
+    </h2>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-3">
+      <div class="flex items-start gap-4">
+        <span class="inline-block w-16 text-center text-xs font-bold rounded-md py-1 bg-blue-50 text-blue-600">GET</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900">Retrieve the most relevant passages</p>
+          <p class="font-mono text-xs text-gray-500">/api/v1/passages?q=query</p>
+        </div>
+      </div>
+      <p class="text-sm text-gray-600">For agents grounding answers in notes. Returns excerpts of notes matched by meaning as well as wording, best first, from notes you own or that are shared with you (archived included, trashed never). <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">q</code> is plain text; it is never parsed as search syntax.</p>
+      <ul class="text-xs text-gray-500 space-y-1 list-disc pl-5">
+        <li><code>tag</code>: only notes with this tag name; an unknown tag matches nothing</li>
+        <li><code>archived</code>: <code>include</code> (default), <code>exclude</code> or <code>only</code></li>
+        <li><code>updated_after</code> / <code>updated_before</code>: ISO 8601 date or date-time (after is inclusive, before is exclusive)</li>
+        <li><code>limit</code>: default 8, at most 50; at most 3 passages per note</li>
+      </ul>
+      <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700 whitespace-pre overflow-x-auto">{
+  "ranking": "hybrid",
+  "passages": [
+    {
+      "text": "Retention keeps deleted objects for 30 days.",
+      "heading_trail": ["Backups", "S3 bucket"],
+      "note": {
+        "id": 42, "title": "Server runbook", "tags": ["infra"],
+        "created_at": "…", "updated_at": "…", "archived": false,
+        "owned": true, "url": "https://…/notes/42"
+      }
+    }
+  ]
+}</div>
+      <p class="text-xs text-gray-500"><code>ranking</code> is <code>"keyword"</code> when semantic matching was unavailable for this query; results then match on wording only. Passages have no ids: cite the note and its heading trail.</p>
+    </div>
+  </section>
+
   <%# Tags %>
   <section class="mb-10">
     <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">

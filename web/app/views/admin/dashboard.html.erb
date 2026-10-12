@@ -12,6 +12,28 @@
       <span class="block text-2xl font-bold text-gray-900"><%= @total_notes %></span>
       <span class="text-xs text-gray-400">Notes</span>
     </div>
+    <div class="col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+      <div class="flex items-center gap-2 mb-2">
+        <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <span class="text-xs text-gray-400">Retrieval</span>
+      </div>
+      <span class="block text-2xl font-bold text-gray-900">
+        <%= number_with_delimiter(@retrieval.notes_embedded) %> / <%= number_with_delimiter(@retrieval.notes_total) %>
+      </span>
+      <span class="block text-xs text-gray-400 mb-2">notes embedded</span>
+      <p class="text-xs text-gray-500 truncate" title="<%= @retrieval.model %>">
+        Model: <span class="font-mono"><%= @retrieval.model %></span>
+        <% if @retrieval.model_installed %>
+          <span class="text-green-600">installed</span>
+        <% else %>
+          <span class="text-red-500 font-medium">missing — run make update</span>
+        <% end %>
+      </p>
+      <p class="text-xs text-gray-500">
+        Last sweep:
+        <%= @retrieval.last_sweep_at ? "#{time_ago_in_words(@retrieval.last_sweep_at)} ago" : "not yet run" %>
+      </p>
+    </div>
   </div>
 
   <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Users</h2>

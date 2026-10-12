@@ -5,6 +5,7 @@ class AdminController < ApplicationController
     @users = User.all.order(:name)
     @total_notes = Note.count
     @total_users = User.count
+    @retrieval = Retrieval.status
   end
 
   def update_user

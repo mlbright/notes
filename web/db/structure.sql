@@ -13,7 +13,7 @@ FOREIGN KEY ("blob_id")
   REFERENCES "active_storage_blobs" ("id")
 );
 CREATE UNIQUE INDEX "index_active_storage_variant_records_uniqueness" ON "active_storage_variant_records" ("blob_id", "variation_digest") /*application='Web'*/;
-CREATE TABLE IF NOT EXISTS "notes" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "title" varchar, "body" text, "pinned" boolean DEFAULT FALSE NOT NULL, "archived" boolean DEFAULT FALSE NOT NULL, "trashed" boolean DEFAULT FALSE NOT NULL, "trashed_at" datetime(6), "max_size" integer DEFAULT 32768 NOT NULL, "user_id" integer NOT NULL, "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL, "checklist" boolean DEFAULT FALSE NOT NULL, CONSTRAINT "fk_rails_7f2323ad43"
+CREATE TABLE IF NOT EXISTS "notes" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "title" varchar, "body" text, "pinned" boolean DEFAULT FALSE NOT NULL, "archived" boolean DEFAULT FALSE NOT NULL, "trashed" boolean DEFAULT FALSE NOT NULL, "trashed_at" datetime(6), "max_size" integer DEFAULT 32768 NOT NULL, "user_id" integer NOT NULL, "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL, "checklist" boolean DEFAULT FALSE NOT NULL, "passages_version" integer /*application='Web'*/, CONSTRAINT "fk_rails_7f2323ad43"
 FOREIGN KEY ("user_id")
   REFERENCES "users" ("id")
 );
@@ -79,7 +79,37 @@ CREATE TABLE IF NOT EXISTS "users" ("id" integer PRIMARY KEY AUTOINCREMENT NOT N
 CREATE UNIQUE INDEX "index_users_on_email" ON "users" ("email") /*application='Web'*/;
 CREATE UNIQUE INDEX "index_users_on_uid" ON "users" ("uid") /*application='Web'*/;
 CREATE UNIQUE INDEX "index_users_on_api_token" ON "users" ("api_token") /*application='Web'*/;
+CREATE TABLE IF NOT EXISTS "passages" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "note_id" integer NOT NULL, "position" integer NOT NULL, "title" varchar, "heading_trail" text NOT NULL, "body" text NOT NULL, "digest" varchar NOT NULL, "embedding" blob, "embedding_model" varchar, CONSTRAINT "fk_rails_a09f25690a"
+FOREIGN KEY ("note_id")
+  REFERENCES "notes" ("id")
+);
+CREATE INDEX "index_passages_on_note_id" ON "passages" ("note_id") /*application='Web'*/;
+CREATE INDEX "index_passages_on_embedding_model" ON "passages" ("embedding_model") /*application='Web'*/;
+CREATE VIRTUAL TABLE passages_search_index USING fts5(
+        title,
+        heading_trail,
+        body,
+        content='passages',
+        content_rowid='id',
+        tokenize='porter'
+      )
+/* passages_search_index(title,heading_trail,body) */;
+CREATE TABLE IF NOT EXISTS 'passages_search_index_data'(id INTEGER PRIMARY KEY, block BLOB);
+CREATE TABLE IF NOT EXISTS 'passages_search_index_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS 'passages_search_index_docsize'(id INTEGER PRIMARY KEY, sz BLOB);
+CREATE TABLE IF NOT EXISTS 'passages_search_index_config'(k PRIMARY KEY, v) WITHOUT ROWID;
+CREATE TRIGGER passages_ai AFTER INSERT ON passages BEGIN
+        INSERT INTO passages_search_index(rowid, title, heading_trail, body) VALUES (new.id, new.title, new.heading_trail, new.body);
+      END;
+CREATE TRIGGER passages_ad AFTER DELETE ON passages BEGIN
+        INSERT INTO passages_search_index(passages_search_index, rowid, title, heading_trail, body) VALUES('delete', old.id, old.title, old.heading_trail, old.body);
+      END;
+CREATE TRIGGER passages_au AFTER UPDATE OF title, heading_trail, body ON passages BEGIN
+        INSERT INTO passages_search_index(passages_search_index, rowid, title, heading_trail, body) VALUES('delete', old.id, old.title, old.heading_trail, old.body);
+        INSERT INTO passages_search_index(rowid, title, heading_trail, body) VALUES (new.id, new.title, new.heading_trail, new.body);
+      END;
 INSERT INTO "schema_migrations" (version) VALUES
+('20261012120000'),
 ('20260314191259'),
 ('20260224000000'),
 ('20260208174535'),
