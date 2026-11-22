@@ -30,9 +30,12 @@ RSpec.describe "Api::V1::Auth", type: :request do
       expect(password_user.reload.api_token).to be_nil
     end
 
-    it "issues a token for a matching email and OAuth uid" do
+    # A uid identifies an account; it is not a secret, so it must never stand
+    # in for a password.
+    it "rejects a matching email and OAuth uid" do
       post "/api/v1/auth/token", params: { email: oauth_user.email, uid: oauth_user.uid }.to_json, headers: json_headers
-      expect(response).to have_http_status(:ok)
+      expect(response).to have_http_status(:unauthorized)
+      expect(oauth_user.reload.api_token).to be_nil
     end
   end
 

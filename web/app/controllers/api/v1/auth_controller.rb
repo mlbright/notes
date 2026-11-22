@@ -4,11 +4,7 @@ module Api
       skip_before_action :authenticate_api_user!
 
       def create_token
-        user = if params[:password].present?
-          User.authenticate_by_password(params[:email], params[:password])
-        elsif params[:uid].present?
-          User.find_by(email: params[:email], uid: params[:uid])
-        end
+        user = User.authenticate_by_password(params[:email], params[:password]) if params[:password].present?
 
         if user
           token = user.generate_api_token!
