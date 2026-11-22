@@ -16,8 +16,8 @@ using Turbo Native (Hotwire).
 
 ## Data model
 
-- **User**: name, email, role (admin/user), session timeout (default 1h),
-  preferences
+- **User**: name, email, role (admin/user), session timeout (default 7
+  days), preferences
 - **Note**: title (optional), body (markdown), pinned, archived, trashed,
   trashed_at, max_size (default 32K), timestamps
 - **Tag**: name, color; notes have many tags through a join table
@@ -36,7 +36,7 @@ using Turbo Native (Hotwire).
   Turbo Native clients
 - Admin role can manage users and see platform-level settings
 - Users can only access their own notes plus notes explicitly shared with them
-- Adjustable session timeout defaulting to 1h with sliding expiration
+- Adjustable session timeout defaulting to 7 days with sliding expiration
 
 ## Features
 
@@ -97,10 +97,9 @@ using Turbo Native (Hotwire).
 - Versioned endpoints (e.g., /api/v1/) to allow non-breaking evolution
 - Pagination, filtering, and sorting on collection endpoints
 - Consistent error responses with standard HTTP status codes
-- OpenAPI (Swagger) specification auto-generated from the codebase and kept up
-  to date
 - Rate limiting to protect against abuse
-- API documentation published and accessible at /api/docs
+- API documentation is a hand-written page at /api/docs, updated with the API
+  (no OpenAPI specification is generated)
 
 ## Development
 

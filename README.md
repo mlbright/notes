@@ -21,7 +21,7 @@ on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
 - **Soft delete** — Trashed notes are permanently deleted after 30 days
 - **Export** — Download individual notes or bulk-export as Markdown files
 - **REST API** — Complete JSON API at `/api/v1/` with token-based auth,
-  pagination, rate limiting, and OpenAPI docs at `/api/docs`
+  pagination, rate limiting, and documentation at `/api/docs`
 - **Authentication** — Email and password for web sessions; token-based auth
   for API and mobile clients
 - **Admin panel** — User management and platform settings for administrators
