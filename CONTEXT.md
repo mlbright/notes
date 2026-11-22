@@ -51,6 +51,35 @@ this free of implementation detail; it defines _words_, not designs.
   modes and symlinks that the object store cannot represent. A restore is only
   exact once the manifest has been re-applied.
 
+## Rust port
+
+- **Reference** — The Rails implementation of the Notes system at a pinned
+  commit, treated as the authority on behaviour: where the Port and the
+  Reference disagree, the Port is wrong unless the difference was chosen
+  deliberately. Avoid: original, legacy app.
+
+- **Port** — The Rust reimplementation of the Notes system. It is a candidate
+  replacement for the Reference: it runs against the same Production State,
+  unchanged, so either one can serve production and switching between them in
+  either direction loses nothing. Avoid: clone, rewrite.
+
+- **Parity** — The Port and the Reference producing the same outcome for the
+  same request against the same starting state: the same response and the same
+  resulting Production State. Each surface has its own bar for "the same" (the
+  JSON API is compared exactly, web pages by their document structure).
+  Avoid: equivalence, correctness.
+
+- **Switch** — Changing which implementation, Reference or Port, serves
+  production, on the same machine and against the same Production State. Either
+  direction is a restart. Not a Cold Cutover, which moves production between
+  machines. Avoid: cutover, migration.
+
+- **Point of No Return** — The first Port change whose Production State the
+  Reference can no longer read correctly. Until it, a Switch back to the
+  Reference loses nothing; after it, going back means restoring the Database
+  Snapshot taken just before it, and losing everything written since. Reached
+  only deliberately, never as a side effect of an ordinary change.
+
 ## Search & retrieval
 
 - **Search** — Finding notes by the words they contain, for a person browsing
