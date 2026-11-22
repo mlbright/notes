@@ -22,7 +22,7 @@ both the development workspace and the production deployment.
 | SQLite databases (primary/cache/queue/cable) | `web/storage/*.sqlite3`      |
 | Active Storage blobs                         | `web/storage/<2-char dirs>/` |
 | Rails master key                             | `web/config/master.key`      |
-| Runtime env (APP_HOST, Google OAuth, …)      | `web/.env`                   |
+| Runtime env (APP_HOST, SECRET_KEY_BASE, …)   | `web/.env`                   |
 | Backup credentials (S3/AWS, ntfy)            | `deploy/backup.env`          |
 
 All of these are gitignored. Everything else is code and regenerable.
@@ -100,6 +100,11 @@ Loaded by the systemd unit (`EnvironmentFile`). Keep `chmod 600`.
 # Public domain served by the Caddy machine (enables Host authorization).
 APP_HOST=notes.example.com
 
+# Signs and encrypts session cookies, CSRF tokens and attachment URLs.
+# Changing it signs everyone out. Read by both Rails and the Rust Port
+# (ADR 0004). Generate one with `bin/rails secret`.
+SECRET_KEY_BASE=...
+
 # Google OAuth2 (web sign-in).
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
@@ -110,7 +115,9 @@ GOOGLE_CLIENT_SECRET=...
 
 ### `web/config/master.key`
 
-Decrypts `web/config/credentials.yml.enc`. `chmod 600`.
+Decrypts `web/config/credentials.yml.enc`, which no longer holds any runtime
+secret: `secret_key_base` moved to `web/.env`. Both stay until Rails is
+retired (ADR 0004). `chmod 600`.
 
 ### `deploy/backup.env`
 

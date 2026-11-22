@@ -103,7 +103,8 @@ bin/rails server
 | --------------------- | ------------- | -------------------------------------------------------------- |
 | `PORT`                | `3000`        | HTTP port for the development server                           |
 | `RAILS_ENV`           | `development` | Rails environment (`development`, `test`, `production`)        |
-| `RAILS_MASTER_KEY`    | —             | Decrypts `config/credentials.yml.enc` (required in production) |
+| `SECRET_KEY_BASE`     | —             | Signs and encrypts cookies (required in production)            |
+| `RAILS_MASTER_KEY`    | —             | Decrypts `config/credentials.yml.enc` (no runtime secrets)     |
 | `WEB_CONCURRENCY`     | `1`           | Number of Puma worker processes                                |
 | `RAILS_MAX_THREADS`   | `5`           | Threads per Puma worker / max DB connections                   |
 | `SOLID_QUEUE_IN_PUMA` | `true`        | Run Solid Queue background jobs inside the Puma process        |

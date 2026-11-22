@@ -33,7 +33,8 @@ Environment=SOLID_QUEUE_IN_PUMA=true
 Environment=RAILS_LOG_LEVEL=info
 Environment=PIDFILE=@WEB_DIR@/tmp/pids/server.pid
 Environment=RUBY_YJIT_ENABLE=1
-# All runtime secrets (APP_HOST, Google OAuth, optional RAILS_MASTER_KEY)
+# All runtime secrets (APP_HOST, SECRET_KEY_BASE, Google OAuth, optional
+# RAILS_MASTER_KEY)
 # live in the repo so they migrate with it.
 EnvironmentFile=-@WEB_DIR@/.env
 
