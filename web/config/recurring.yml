@@ -16,3 +16,6 @@ production:
   retrieval_sweep:
     class: RetrievalSweepJob
     schedule: every 10 minutes
+  permanent_trash_deletion:
+    class: PermanentTrashDeletionJob
+    schedule: every day at 3am
