@@ -29,7 +29,7 @@
                   prose-headings:text-xs prose-headings:font-semibold prose-headings:my-1
                   prose-pre:text-xs prose-pre:my-1 prose-code:text-xs
                   prose-blockquote:my-1 prose-blockquote:text-xs">
-        <%= render_markdown(truncate(note.body, length: 500, omission: "…")) %>
+        <%= render_markdown(truncate(note.body, length: 500, omission: "…", escape: false)) %>
       </div>
       <% end %>
     <% end %>
