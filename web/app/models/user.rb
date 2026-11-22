@@ -13,17 +13,9 @@ class User < ApplicationRecord
   validates :uid, uniqueness: true, allow_nil: true
   validates :session_timeout, numericality: { greater_than: 0 }
   validates :password, length: { minimum: 4 }, allow_nil: true
-  validate :must_have_auth_method
+  validate :must_have_password
 
   before_validation :set_defaults, on: :create
-
-  def self.from_omniauth(auth)
-    find_or_initialize_by(uid: auth.uid, provider: auth.provider).tap do |user|
-      user.name = auth.info.name
-      user.email = auth.info.email
-      user.save!
-    end
-  end
 
   def self.authenticate_by_password(email, password)
     user = find_by(email: email)
@@ -35,24 +27,6 @@ class User < ApplicationRecord
     return nil if token.blank?
     user = find_by(api_token: token)
     user unless user.nil? || user.token_expired?
-  end
-
-  def oauth_user?
-    uid.present? && provider.present?
-  end
-
-  def password_user?
-    password_digest.present?
-  end
-
-  before_validation :set_defaults, on: :create
-
-  def self.from_omniauth(auth)
-    find_or_initialize_by(uid: auth.uid, provider: auth.provider).tap do |user|
-      user.name = auth.info.name
-      user.email = auth.info.email
-      user.save!
-    end
   end
 
   def generate_api_token!
@@ -80,9 +54,8 @@ class User < ApplicationRecord
     self.session_timeout ||= 604800
   end
 
-  def must_have_auth_method
-    unless oauth_user? || password_digest.present?
-      errors.add(:base, "Must have either OAuth credentials or a password")
-    end
+  # Accounts sign in only with a password (Google sign-in was retired).
+  def must_have_password
+    errors.add(:base, "Must have a password") if password_digest.blank?
   end
 end

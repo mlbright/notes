@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Notes", type: :request do
-  let(:user) { create(:user, :password_user) }
+  let(:user) { create(:user) }
 
   before do
     post password_login_path, params: { email: user.email, password: "password" }

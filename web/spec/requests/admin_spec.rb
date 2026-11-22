@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Admin", type: :request do
-  let(:admin) { create(:user, :password_user, :admin) }
+  let(:admin) { create(:user, :admin) }
 
   before do
     post password_login_path, params: { email: admin.email, password: "password" }

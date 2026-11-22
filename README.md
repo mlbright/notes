@@ -22,8 +22,8 @@ on Rails, SQLite, and Hotwire, with companion mobile apps via Turbo Native.
 - **Export** — Download individual notes or bulk-export as Markdown files
 - **REST API** — Complete JSON API at `/api/v1/` with token-based auth,
   pagination, rate limiting, and OpenAPI docs at `/api/docs`
-- **Authentication** — Google OAuth2 for web sessions; email/password with
-  token-based auth for API and mobile clients
+- **Authentication** — Email and password for web sessions; token-based auth
+  for API and mobile clients
 - **Admin panel** — User management and platform settings for administrators
 - **Responsive design** — Card-based layout that works well on desktop and in
   Turbo Native mobile shells

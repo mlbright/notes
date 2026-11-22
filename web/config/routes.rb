@@ -5,8 +5,6 @@ Rails.application.routes.draw do
   # Authentication
   get "login", to: "sessions#new", as: :login
   post "login", to: "sessions#create_from_password", as: :password_login
-  get "auth/:provider/callback", to: "sessions#create"
-  get "auth/failure", to: "sessions#failure"
   delete "logout", to: "sessions#destroy", as: :logout
 
   # Password management

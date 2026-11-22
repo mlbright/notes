@@ -16,24 +16,23 @@ RSpec.describe User, type: :model do
     it { is_expected.to validate_uniqueness_of(:email) }
     it { is_expected.to validate_numericality_of(:session_timeout).is_greater_than(0) }
 
-    it "requires either OAuth credentials or a password" do
-      user = build(:user, uid: nil, provider: nil, password: nil)
+    it "requires a password" do
+      user = build(:user, password: nil, password_confirmation: nil)
       expect(user).not_to be_valid
-      expect(user.errors[:base]).to include("Must have either OAuth credentials or a password")
+      expect(user.errors[:base]).to include("Must have a password")
     end
 
-    it "accepts a user with only OAuth credentials" do
-      user = build(:user)
-      expect(user).to be_valid
+    it "does not accept a Google identity in place of a password" do
+      user = build(:user, :legacy_google_identity, password: nil, password_confirmation: nil)
+      expect(user).not_to be_valid
     end
 
-    it "accepts a user with only a password" do
-      user = build(:user, :password_user)
-      expect(user).to be_valid
+    it "accepts a user with a password" do
+      expect(build(:user)).to be_valid
     end
 
     it "validates password length when set" do
-      user = build(:user, :password_user, password: "abc")
+      user = build(:user, password: "abc")
       expect(user).not_to be_valid
     end
   end
@@ -42,33 +41,8 @@ RSpec.describe User, type: :model do
     it { is_expected.to define_enum_for(:role).with_values(user: 0, admin: 1) }
   end
 
-  describe ".from_omniauth" do
-    let(:auth) do
-      OpenStruct.new(
-        uid: "12345",
-        provider: "google_oauth2",
-        info: OpenStruct.new(name: "Test User", email: "test@example.com")
-      )
-    end
-
-    it "creates a new user from OAuth data" do
-      expect { User.from_omniauth(auth) }.to change(User, :count).by(1)
-      user = User.last
-      expect(user.name).to eq("Test User")
-      expect(user.email).to eq("test@example.com")
-      expect(user.uid).to eq("12345")
-    end
-
-    it "finds and updates an existing user" do
-      existing = create(:user, uid: "12345", provider: "google_oauth2")
-      expect { User.from_omniauth(auth) }.not_to change(User, :count)
-      existing.reload
-      expect(existing.name).to eq("Test User")
-    end
-  end
-
   describe ".authenticate_by_password" do
-    let!(:user) { create(:user, :password_user, email: "pw@example.com", password: "secret1234") }
+    let!(:user) { create(:user, email: "pw@example.com", password: "secret1234") }
 
     it "returns the user for correct credentials" do
       result = User.authenticate_by_password("pw@example.com", "secret1234")
@@ -83,26 +57,6 @@ RSpec.describe User, type: :model do
     it "returns nil for nonexistent email" do
       result = User.authenticate_by_password("nobody@example.com", "secret1234")
       expect(result).to be_nil
-    end
-
-    it "returns nil for OAuth-only user" do
-      oauth_user = create(:user)
-      result = User.authenticate_by_password(oauth_user.email, "anything")
-      expect(result).to be_nil
-    end
-  end
-
-  describe "#oauth_user? and #password_user?" do
-    it "identifies OAuth users" do
-      user = build(:user)
-      expect(user.oauth_user?).to be true
-      expect(user.password_user?).to be false
-    end
-
-    it "identifies password users" do
-      user = build(:user, :password_user)
-      expect(user.oauth_user?).to be false
-      expect(user.password_user?).to be true
     end
   end
 

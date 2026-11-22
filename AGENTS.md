@@ -30,7 +30,8 @@ using Turbo Native (Hotwire).
 
 ## Authentication & authorization
 
-- OAuth2 with Google as the identity provider
+- Email and password sign-in; new accounts are added by the operator (Google
+  sign-in was retired; see ADR 0004)
 - Session-based auth for the web app; token-based auth (with refresh tokens) for
   Turbo Native clients
 - Admin role can manage users and see platform-level settings

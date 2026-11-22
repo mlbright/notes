@@ -4,8 +4,8 @@ RSpec.describe "Api::V1::Auth", type: :request do
   let(:json_headers) { { "Content-Type" => "application/json" } }
 
   describe "POST /api/v1/auth/token" do
-    let(:password_user) { create(:user, :password_user) }
-    let(:oauth_user) { create(:user) }
+    let(:password_user) { create(:user) }
+    let(:oauth_user) { create(:user, :legacy_google_identity) }
 
     it "issues a token for a valid email and password" do
       post "/api/v1/auth/token", params: { email: password_user.email, password: "password" }.to_json, headers: json_headers
