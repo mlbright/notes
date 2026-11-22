@@ -17,10 +17,7 @@
         <h3 class="text-sm font-semibold text-gray-800 mb-2">Obtain a token</h3>
         <div class="bg-gray-50 rounded-xl p-4 font-mono text-xs text-gray-700 space-y-1">
           <p><span class="text-green-600 font-semibold">POST</span> /api/v1/auth/token</p>
-          <p class="text-gray-500"># With password:</p>
           <p>{ "email": "you@example.com", "password": "your-password" }</p>
-          <p class="text-gray-500 mt-1"># With OAuth UID:</p>
-          <p>{ "email": "you@example.com", "uid": "your-oauth-uid" }</p>
         </div>
         <p class="text-xs text-gray-500 mt-3">Returns <code class="bg-gray-100 px-1 py-0.5 rounded">{ "token": "...", "expires_at": "..." }</code>. Tokens expire after 30 days.</p>
       </div>
