@@ -22,6 +22,12 @@ SYSTEMD_DIR  := /etc/systemd/system
 # agent skills. Deferred (=) so other targets don't need shfmt installed.
 SHELL_SCRIPTS = $(shell git ls-files -z --cached --others --exclude-standard -- ':!.github/skills' | xargs -0 shfmt -f 2>/dev/null)
 
+# Production Rails run outside the service, e.g. by `make update`. The service
+# gets SECRET_KEY_BASE from web/.env (EnvironmentFile); pass just that key here
+# rather than source the file. The shell expands it, so make never prints it.
+PROD_RAILS = cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production \
+	SECRET_KEY_BASE="$$(sed -n 's/^SECRET_KEY_BASE=//p' .env | tail -n 1)" bin/rails
+
 # Substitutes template placeholders when generating systemd units.
 RENDER = sed \
 	-e 's|@APP_DIR@|$(APP_DIR)|g' \
@@ -29,7 +35,7 @@ RENDER = sed \
 	-e 's|@RUBY_DIR@|$(RUBY_DIR)|g' \
 	-e 's|@SERVICE_USER@|$(SERVICE_USER)|g'
 
-.PHONY: help install install-deps install-web install-backup backup update restart status logs check-ruby lint format check-shell-tools
+.PHONY: help install install-deps install-web install-backup backup update restart status logs check-ruby check-secret-key-base lint format check-shell-tools
 
 .DEFAULT_GOAL := help
 
@@ -63,6 +69,12 @@ check-ruby:
 		exit 1; \
 	}
 
+check-secret-key-base:
+	@grep -q '^SECRET_KEY_BASE=.' $(WEB_DIR)/.env 2>/dev/null || { \
+		echo "error: SECRET_KEY_BASE is missing from web/.env (see deploy/DEPLOYMENT.md)"; \
+		exit 1; \
+	}
+
 install-deps: ## Install apt packages (build tools, sqlite3, libvips, ...)
 	sudo apt-get update -qq
 	sudo apt-get install -y -qq \
@@ -88,11 +100,11 @@ backup: ## Run a backup to S3 now
 
 # No git operations here by design: production runs whatever the working
 # tree contains, and git is the operator's business.
-update: check-ruby ## Deploy the working tree: bundle, migrate, assets, model, restart
+update: check-ruby check-secret-key-base ## Deploy the working tree: bundle, migrate, assets, model, restart
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" bundle install
-	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails db:prepare
-	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails assets:precompile
-	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" RAILS_ENV=production bin/rails retrieval:install_model
+	$(PROD_RAILS) db:prepare
+	$(PROD_RAILS) assets:precompile
+	$(PROD_RAILS) retrieval:install_model
 	sudo systemctl restart notes-web.service
 
 restart: ## Restart notes-web

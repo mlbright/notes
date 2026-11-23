@@ -94,7 +94,8 @@ Then configure the Caddy machine: see [caddy-snippet.md](./caddy-snippet.md).
 
 ### `web/.env`
 
-Loaded by the systemd unit (`EnvironmentFile`). Keep `chmod 600`.
+Loaded by the systemd unit (`EnvironmentFile`); `make update` reads only
+`SECRET_KEY_BASE` from it. Keep `chmod 600`.
 
 ```env
 # Public domain served by the Caddy machine (enables Host authorization).
