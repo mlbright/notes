@@ -17,11 +17,11 @@ rendered by Redcarpet with app-specific options, the HTML embeds Rails-signed
 blob IDs and CSRF tokens, Passages are cut by Ruby string rules, and Retrieval
 depends on matching embeddings from a pinned model.
 
-The port follows the operator's rails-to-rust toolkit: a pinned Reference,
-contracts captured from the running Rails runtime, strict Parity with narrow
-per-case masks, and rollback rehearsals. This ADR records the choices that
-shape it. The full rationale is in the conversion plan of the `notes-rust`
-repository.
+The port follows Basecamp's rails-to-rust toolkit
+(`github.com/basecamp/rails-to-rust`): a pinned Reference, contracts captured
+from the running Rails runtime, strict Parity with narrow per-case masks, and
+rollback rehearsals. This ADR records the choices that shape it. The full
+rationale is in the conversion plan of the `notes-rust` repository.
 
 ## Decision
 
