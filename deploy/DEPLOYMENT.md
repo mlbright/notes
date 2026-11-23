@@ -80,8 +80,11 @@ $EDITOR web/.env
 #    Add AWS_PROFILE=<name> to provision with a named AWS CLI profile.
 make install
 
-# 4. Gems, database, assets, start
+# 4. Gems, database, assets, start. On a new database this creates the
+#    admin account with the password in ADMIN_PASSWORD (none without it).
+read -rs ADMIN_PASSWORD && export ADMIN_PASSWORD
 make update
+unset ADMIN_PASSWORD
 
 # 5. Verify
 make status

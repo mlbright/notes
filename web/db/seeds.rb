@@ -1,17 +1,18 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
+# Creates the operator's admin account. db:prepare runs this on a new database;
+# it is idempotent, and leaves an existing account untouched.
 #
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# The password comes from ADMIN_PASSWORD. Development and test fall back to
+# "admin"; production never does, and creates no account without it.
+password = ENV["ADMIN_PASSWORD"].presence || ("admin" if Rails.env.local?)
 
-# Create admin user with default password
-User.find_or_create_by!(email: "mlbright@gmail.com") do |user|
-  user.name = "Admin"
-  user.role = :admin
-  user.password = "admin"
-  user.password_confirmation = "admin"
+if password
+  User.find_or_create_by!(email: "mlbright@gmail.com") do |user|
+    user.name = "Admin"
+    user.role = :admin
+    user.password = password
+    user.password_confirmation = password
+  end
+elsif !User.exists?(email: "mlbright@gmail.com")
+  warn "db/seeds.rb: ADMIN_PASSWORD is not set, so no admin account was created. " \
+    "Set it and run db:seed to create one."
 end

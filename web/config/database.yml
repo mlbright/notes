@@ -29,6 +29,11 @@ test:
 
 # Store production database in the storage/ directory, which by default
 # is mounted as a persistent Docker volume in config/deploy.yml.
+#
+# The primary database's schema is db/structure.sql (schema_format :sql in
+# config/application.rb); the Solid Cache, Queue and Cable schemas ship as
+# Ruby (db/*_schema.rb), so those databases say so. Without it a fresh
+# db:prepare looks for db/*_structure.sql, finds none and leaves them empty.
 production:
   primary:
     <<: *with_sqlite_vec
@@ -37,11 +42,14 @@ production:
     <<: *default
     database: storage/production_cache.sqlite3
     migrations_paths: db/cache_migrate
+    schema_format: ruby
   queue:
     <<: *default
     database: storage/production_queue.sqlite3
     migrations_paths: db/queue_migrate
+    schema_format: ruby
   cable:
     <<: *default
     database: storage/production_cable.sqlite3
     migrations_paths: db/cable_migrate
+    schema_format: ruby

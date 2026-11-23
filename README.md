@@ -78,7 +78,8 @@ bin/setup
 ```
 
 This installs gem dependencies, creates the SQLite database, and runs
-migrations. A default admin user is seeded (`mlbright@gmail.com` / `admin`).
+migrations. A default admin user is seeded (`mlbright@gmail.com` / `admin`, or
+the password in `ADMIN_PASSWORD`).
 
 ### Development Server
 
