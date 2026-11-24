@@ -9,6 +9,9 @@
 Description=Notes Web (Puma + Solid Queue)
 After=network.target
 Wants=network.target
+# Only one of notes-web and notes-port (the Rust Port) runs; see
+# `make switch-to-port` and `make switch-to-rails`.
+Conflicts=notes-port.service
 
 [Service]
 Type=simple

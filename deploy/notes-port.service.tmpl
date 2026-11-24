@@ -1,0 +1,62 @@
+# Template for /etc/systemd/system/notes-port.service: the Rust Port (ADR 0004)
+# serving this checkout in place of notes-web.
+#
+# This file is NOT installed verbatim: `make install-port` substitutes the
+# @PLACEHOLDER@ values (repo paths, mise Ruby path, service user) and writes
+# the result to /etc/systemd/system. Never edit the installed unit by hand —
+# change this template and re-run `make install-port`.
+#
+# Only one of notes-web and notes-port runs: each conflicts with the other, and
+# `make switch-to-port` / `make switch-to-rails` change which one is enabled.
+
+[Unit]
+Description=Notes Port (Rust, in place of Puma + Solid Queue)
+After=network.target
+Wants=network.target
+Conflicts=notes-web.service
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_USER@
+WorkingDirectory=@WEB_DIR@
+ExecStart=@PORT_DIR@/target/release/notes
+Restart=on-failure
+RestartSec=5
+SyslogIdentifier=notes-port
+
+# Environment
+# The same PATH as notes-web, so both find the same tools (ffprobe, used for
+# video and audio analysis, is not on it).
+Environment=PATH=@RUBY_DIR@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Thruster's port, on all interfaces: the reverse proxy on the Caddy machine
+# connects over Tailscale. The Port does Thruster's work itself (its response
+# cache and gzip).
+Environment=PORT=3002
+Environment=BIND=0.0.0.0
+# Rails' state, public files and embedding model, served in place.
+Environment=NOTES_STORAGE=@WEB_DIR@/storage
+Environment=NOTES_PUBLIC=@WEB_DIR@/public
+Environment=NOTES_MODELS=@WEB_DIR@/vendor/models
+Environment=ORT_DYLIB_PATH=@PORT_DIR@/vendor/onnxruntime/libonnxruntime.so
+# APP_HOST and SECRET_KEY_BASE, shared with Rails so sessions carry over.
+EnvironmentFile=-@WEB_DIR@/.env
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=@WEB_DIR@/storage
+
+# Resource limits
+LimitNOFILE=65536
+TimeoutStartSec=30
+# SIGTERM drains requests in flight; background work restarts from the
+# database on the next start.
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

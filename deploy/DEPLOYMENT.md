@@ -129,18 +129,23 @@ write it by hand. `chmod 600`.
 
 Run `make` (or `make help`) to list the targets with the variables and examples.
 
-| Target                | What it does                                                                            |
-| --------------------- | --------------------------------------------------------------------------------------- |
-| `make help`           | List targets, variables, and examples (the default target)                              |
-| `make install`        | `install-deps` + `install-web` + `install-backup` (idempotent)                          |
-| `make install-deps`   | apt packages (build tools, sqlite3, libvips, …)                                         |
-| `make install-web`    | Renders + installs `notes-web.service`, enables it                                      |
-| `make install-backup` | `deploy/install-backup.sh`: provisions S3 on first run, installs backup service + timer |
-| `make backup`         | Run a backup now                                                                        |
-| `make update`         | `bundle install` → `db:prepare` → `assets:precompile` → model → restart                 |
-| `make restart`        | Restart the service                                                                     |
-| `make status`         | Service status + backup timer schedule                                                  |
-| `make logs`           | Follow the journal                                                                      |
+| Target                 | What it does                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| `make help`            | List targets, variables, and examples (the default target)                              |
+| `make install`         | `install-deps` + `install-web` + `install-backup` (idempotent)                          |
+| `make install-deps`    | apt packages (build tools, sqlite3, libvips, …)                                         |
+| `make install-web`     | Renders + installs `notes-web.service`, enables it                                      |
+| `make install-backup`  | `deploy/install-backup.sh`: provisions S3 on first run, installs backup service + timer |
+| `make backup`          | Run a backup now                                                                        |
+| `make update`          | `bundle install` → `db:prepare` → `assets:precompile` → model → restart the live unit   |
+| `make restart`         | Restart the live unit (`notes-web` or `notes-port`)                                     |
+| `make status`          | Live unit status + backup timer schedule                                                |
+| `make logs`            | Follow the live unit's journal                                                          |
+| `make check-port-pin`  | Refuse if `web/` differs from the Reference the Port was verified against               |
+| `make build-port`      | Build the Rust Port (release) in `PORT_DIR` (default `../notes-rust`)                   |
+| `make install-port`    | `build-port`, then render `notes-port.service` (not enabled)                            |
+| `make switch-to-port`  | Stop Rails, refuse while its queue has work, start the Port, wait for `/up`             |
+| `make switch-to-rails` | Stop the Port, start Rails, wait for `/up` (refused past the Point of No Return)        |
 
 `make install` bakes the repo path, your username, and the current mise Ruby
 path into the installed units. **Re-run `make install-web install-backup` after
@@ -166,6 +171,41 @@ fetches it again after a restore or cutover. Once in use it takes about 120 MB
 in Puma (for queries) and 120 MB in the Solid Queue worker (for embedding
 notes). After the first deploy, the sweep cuts and embeds every note within
 about 20 minutes; until then, notes match by wording only.
+
+## Switching to the Rust Port and back
+
+The Rust Port (ADR 0004; its repository sits next to this one, `PORT_DIR`,
+default `../notes-rust`) can serve this checkout in place of Rails: the same
+databases, files, secrets, public files and embedding model, on the same port
+(:3002, all interfaces), doing Thruster's work itself. Only one of
+`notes-web` and `notes-port` runs; the enabled one is the live unit, and
+`make update`, `restart`, `status` and `logs` act on it.
+
+```bash
+make install-port     # once, and after moving either repo or upgrading Ruby
+make switch-to-port   # Rails → Port
+make switch-to-rails  # Port → Rails
+```
+
+- **The pin.** The Port is verified against one commit of this repo (its
+  `reference` submodule). `check-port-pin` (run by `build-port` and
+  `switch-to-port`) refuses when `web/` differs from it: re-pin the Port and
+  re-run its Parity gates first.
+- **Rails' queue.** The Port does not run Solid Queue jobs. `switch-to-port`
+  stops Rails, then refuses (and starts Rails again) while jobs are ready,
+  claimed, scheduled or blocked; retry once Rails has finished them. Failed jobs
+  never run again on their own and do not block.
+- **The way back.** Sessions, forms, API tokens and files carry across both
+  ways. Passages the Port cut but did not embed are embedded by Rails' sweep;
+  images the Port attached but had not analyzed stay without dimensions.
+  `switch-to-rails` refuses once the Port is past its Point of No Return
+  (`rails_rollback = false` in the Port's `migration.toml`).
+- **While the Port is live**, `make update` does not run `db:prepare` and
+  refuses if Rails migrations are pending: Rails must not change the schema
+  under the Port. It still precompiles assets and installs the model, which
+  the Port serves, then rebuilds the Port and restarts it.
+- If the Port does not answer `/up` within a minute, `switch-to-port` switches
+  back to Rails by itself.
 
 ## Backups
 
@@ -391,10 +431,13 @@ from the old machine.
 ## Managing the service
 
 ```bash
-make status                      # service + timer overview
-make logs                        # journal (Puma stdout/stderr)
+make status                      # live unit + timer overview
+make logs                        # live unit's journal
 sudo systemctl {start|stop|restart|reload} notes-web
 tail -f web/log/production.log   # Rails application log
+# While the Port is live: one journal line per request (no query strings)
+# and the cause of every 500, under its request id.
+journalctl -u notes-port -f
 ```
 
 ## Troubleshooting

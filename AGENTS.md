@@ -139,6 +139,10 @@ using Turbo Native (Hotwire).
 - systemd units (Puma web service + S3 backup timer) are generated from
   templates in `deploy/` by `make install` and are the only artifacts outside
   the repo; the app runs as the operator's user with Solid Queue in-process
+- The Rust Port (ADR 0004) can serve the same checkout instead:
+  `notes-port.service` (`make install-port`) conflicts with `notes-web`, and
+  `make switch-to-port` / `make switch-to-rails` change over (see
+  `deploy/DEPLOYMENT.md`)
 - Caddy runs on a separate machine as reverse proxy with automatic TLS, reaching
   Thruster over Tailscale; Thruster and Puma both listen on all interfaces
 - Backups: a systemd timer incrementally syncs the whole checkout (minus

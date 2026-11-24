@@ -18,6 +18,17 @@ SERVICE_USER := $(shell id -un)
 # whatever mise picks elsewhere, e.g. a global Ruby.
 RUBY_DIR     := $(shell cd $(WEB_DIR) && mise where ruby 2>/dev/null)
 SYSTEMD_DIR  := /etc/systemd/system
+# The Rust Port (ADR 0004), built in its own checkout, which serves this
+# checkout's state in place of Rails once switched to (decision 14).
+PORT_DIR     ?= $(abspath $(APP_DIR)/../notes-rust)
+# The unit serving :3002: notes-port when it is enabled, else notes-web.
+LIVE_UNIT     = $(shell systemctl is-enabled --quiet notes-port.service 2>/dev/null && echo notes-port || echo notes-web)
+# Waits up to a minute for /up on :3002 (host authorization skips /up).
+WAIT_UP       = for i in $$(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:3002/up && exit 0; sleep 1; done; exit 1
+# Solid Queue jobs Rails has still to run (ready, claimed, scheduled or
+# blocked; failed ones never run again unless retried by hand).
+QUEUE_PENDING = sqlite3 "file:$(WEB_DIR)/storage/production_queue.sqlite3?mode=ro" \
+	"SELECT (SELECT count(*) FROM solid_queue_ready_executions) + (SELECT count(*) FROM solid_queue_claimed_executions) + (SELECT count(*) FROM solid_queue_scheduled_executions) + (SELECT count(*) FROM solid_queue_blocked_executions)"
 # Shell scripts (by extension or shebang), tracked or new, minus third-party
 # agent skills. Deferred (=) so other targets don't need shfmt installed.
 SHELL_SCRIPTS = $(shell git ls-files -z --cached --others --exclude-standard -- ':!.github/skills' | xargs -0 shfmt -f 2>/dev/null)
@@ -33,9 +44,10 @@ RENDER = sed \
 	-e 's|@APP_DIR@|$(APP_DIR)|g' \
 	-e 's|@WEB_DIR@|$(WEB_DIR)|g' \
 	-e 's|@RUBY_DIR@|$(RUBY_DIR)|g' \
+	-e 's|@PORT_DIR@|$(PORT_DIR)|g' \
 	-e 's|@SERVICE_USER@|$(SERVICE_USER)|g'
 
-.PHONY: help install install-deps install-web install-backup backup update restart status logs check-ruby check-secret-key-base lint format check-shell-tools
+.PHONY: help install install-deps install-web install-backup backup update restart status logs check-ruby check-secret-key-base lint format check-shell-tools check-port-pin build-port install-port switch-to-port switch-to-rails
 
 .DEFAULT_GOAL := help
 
@@ -100,23 +112,80 @@ backup: ## Run a backup to S3 now
 
 # No git operations here by design: production runs whatever the working
 # tree contains, and git is the operator's business.
-update: check-ruby check-secret-key-base ## Deploy the working tree: bundle, migrate, assets, model, restart
+update: check-ruby check-secret-key-base ## Deploy the working tree: bundle, migrate, assets, model, restart the live unit
 	cd $(WEB_DIR) && PATH="$(RUBY_DIR)/bin:$$PATH" bundle install
-	$(PROD_RAILS) db:prepare
+	@# While the Port is live, Rails must not change the schema under it.
+	@if [ "$(LIVE_UNIT)" = notes-port ]; then \
+	  echo "The Port is live: not running db:prepare; refusing if migrations are pending"; \
+	  $(PROD_RAILS) db:abort_if_pending_migrations; \
+	else \
+	  $(PROD_RAILS) db:prepare; \
+	fi
 	$(PROD_RAILS) assets:precompile
 	$(PROD_RAILS) retrieval:install_model
-	sudo systemctl restart notes-web.service
+	@if [ "$(LIVE_UNIT)" = notes-port ]; then $(MAKE) --no-print-directory build-port; fi
+	sudo systemctl restart $(LIVE_UNIT).service
 
-restart: ## Restart notes-web
-	sudo systemctl restart notes-web.service
+restart: ## Restart the live unit (notes-web or notes-port)
+	sudo systemctl restart $(LIVE_UNIT).service
 
-status: ## Show notes-web status and the backup timer schedule
-	@systemctl status notes-web.service --no-pager || true
+status: ## Show the live unit's status and the backup timer schedule
+	@systemctl status $(LIVE_UNIT).service --no-pager || true
 	@echo
 	@systemctl list-timers notes-backup.timer --no-pager || true
 
-logs: ## Follow the notes-web journal
-	journalctl -u notes-web -f
+logs: ## Follow the live unit's journal
+	journalctl -u $(LIVE_UNIT) -f
+
+##@ The Rust Port (ADR 0004)
+
+check-port-pin: ## Refuse if web/ differs from the Reference the Port was verified against
+	@pin="$$(git -C $(PORT_DIR) ls-tree HEAD reference | awk '{print $$3}')"; \
+	if [ -z "$$pin" ]; then echo "error: no reference pin in $(PORT_DIR)" >&2; exit 1; fi; \
+	if ! git -C $(APP_DIR) diff --quiet "$$pin" -- web; then \
+	  echo "error: web/ differs from $$pin, the Reference the Port was verified against; re-pin the Port and re-run Parity first" >&2; \
+	  exit 1; \
+	fi
+
+build-port: check-port-pin ## Build the Port (release) in PORT_DIR
+	cd $(PORT_DIR) && cargo build --release -p notes
+
+install-port: build-port ## Build the Port and render notes-port.service (not enabled: see switch-to-port)
+	$(RENDER) deploy/notes-port.service.tmpl | sudo tee $(SYSTEMD_DIR)/notes-port.service >/dev/null
+	$(RENDER) deploy/notes-web.service.tmpl | sudo tee $(SYSTEMD_DIR)/notes-web.service >/dev/null
+	sudo systemctl daemon-reload
+	@echo "Installed notes-port.service (ExecStart=$(PORT_DIR)/target/release/notes); notes-web stays live"
+
+switch-to-port: check-port-pin ## Stop Rails, refuse while its queue has work, start the Port and wait for /up
+	@test -x $(PORT_DIR)/target/release/notes || { echo "error: no Port build; run make install-port" >&2; exit 1; }
+	@test -f $(SYSTEMD_DIR)/notes-port.service || { echo "error: notes-port.service is not installed; run make install-port" >&2; exit 1; }
+	sudo systemctl stop notes-web.service
+	@# The Port does not run Solid Queue jobs: let Rails finish them first.
+	@pending="$$($(QUEUE_PENDING))"; \
+	if [ "$$pending" != 0 ]; then \
+	  echo "error: Solid Queue still has $$pending job(s) to run; starting Rails again to finish them. Retry when they are done." >&2; \
+	  sudo systemctl start notes-web.service; \
+	  exit 1; \
+	fi
+	sudo systemctl disable notes-web.service
+	sudo systemctl enable --now notes-port.service
+	@if ! ($(WAIT_UP)); then \
+	  echo "error: the Port did not answer /up; switching back to Rails" >&2; \
+	  sudo systemctl disable --now notes-port.service; \
+	  sudo systemctl enable --now notes-web.service; \
+	  exit 1; \
+	fi
+	@echo "The Port is live on :3002 (notes-port.service); make switch-to-rails goes back"
+
+switch-to-rails: ## Stop the Port, start Rails and wait for /up (refused past the Port's Point of No Return)
+	@if grep -Eq '^[[:space:]]*rails_rollback[[:space:]]*=[[:space:]]*false' $(PORT_DIR)/migration.toml 2>/dev/null; then \
+	  echo "error: the Port is past its Point of No Return (rails_rollback = false in $(PORT_DIR)/migration.toml): Rails cannot read its state" >&2; \
+	  exit 1; \
+	fi
+	sudo systemctl disable --now notes-port.service
+	sudo systemctl enable --now notes-web.service
+	@($(WAIT_UP)) || { echo "error: Rails did not answer /up" >&2; exit 1; }
+	@echo "Rails is live on :3002 (notes-web.service)"
 
 ##@ Development
 
